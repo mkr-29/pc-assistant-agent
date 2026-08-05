@@ -1,0 +1,68 @@
+# Environment & Secrets (Crucial: never push real API keys, credentials, or env files)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+id_rsa
+id_rsa.pub
+credentials.json
+secrets.json
+secrets.yaml
+secrets.yml
+
+# Runtime Data, Storage & Output
+.data/
+graphify-out/
+screenshots/
+browser-screenshots/
+tmp/
+temp/
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Node / Dependency & Build Artifacts
+node_modules/
+dist/
+build/
+out/
+coverage/
+.cache/
+.parcel-cache/
+.eslintcache
+
+# OS / System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE & Editor Files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.bak
+
+# Applications & Binaries
+*.app
+*.exe
+*.war
+*.jar
+*.class
+*.py[cod]
+
+# Test Reports
+TEST*.xml

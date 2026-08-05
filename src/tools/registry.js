@@ -1,0 +1,43 @@
+import { applyToolApprovalGuard } from '../approvals/toolApprovalGuard.js';
+import { createBrowserTools } from './implementations/browserTools.js';
+import { createAppControlTools } from './implementations/appControlTools.js';
+import { createClipboardTools } from './implementations/clipboardTools.js';
+import { createFilesystemTools } from './implementations/filesystemTools.js';
+import { createProjectTools } from './implementations/projectTools.js';
+import { createReminderTools } from './implementations/reminderTools.js';
+import { createScreenTools } from './implementations/screenTools.js';
+import { createTerminalTools } from './implementations/terminalTools.js';
+import { createTelegramFileTools } from './implementations/telegramFileTools.js';
+
+import { createExtensionTools } from './implementations/extensionTools.js';
+
+export function createToolRegistry({
+    bot,
+    chatId,
+    resolveToolPath,
+    ai,
+    config,
+    reminderScheduler,
+    approvalManager
+}) {
+    const registry = {
+        ...createAppControlTools({ resolveToolPath }),
+        ...createBrowserTools({ config }),
+        ...createExtensionTools(),
+        ...createClipboardTools(),
+        ...createFilesystemTools({ resolveToolPath }),
+        ...createProjectTools({ resolveToolPath }),
+        ...createReminderTools({ chatId, reminderScheduler }),
+        ...createScreenTools({ ai, config }),
+        ...createTerminalTools({ resolveToolPath }),
+        ...createTelegramFileTools({ bot, chatId, resolveToolPath })
+    };
+
+    return applyToolApprovalGuard({
+        registry,
+        chatId,
+        config,
+        resolveToolPath,
+        approvalManager
+    });
+}

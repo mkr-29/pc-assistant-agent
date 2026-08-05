@@ -1,0 +1,26 @@
+{
+  "name": "pc-assistant-agent",
+  "version": "1.0.0",
+  "description": "Telegram-controlled local PC assistant powered by Gemini or Azure OpenAI.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "dev": "nodemon src/main.js",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@google/genai": "^2.10.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "node-telegram-bot-api": "^1.1.2",
+    "playwright": "^1.61.1",
+    "ws": "^8.21.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
