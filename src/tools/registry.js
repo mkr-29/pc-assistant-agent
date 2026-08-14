@@ -13,6 +13,7 @@ import { createTerminalTools } from './implementations/terminalTools.js';
 import { createTelegramFileTools } from './implementations/telegramFileTools.js';
 
 import { createExtensionTools } from './implementations/extensionTools.js';
+import { createMcpTools } from './implementations/mcpTools.js';
 
 export function createToolRegistry({
     bot,
@@ -27,6 +28,7 @@ export function createToolRegistry({
         ...createAppControlTools({ resolveToolPath }),
         ...createBrowserTools({ config }),
         ...createExtensionTools(),
+        ...createMcpTools({ config }),
         ...createClipboardTools(),
         ...createDownloadTools({ resolveToolPath }),
         ...createFilesystemTools({ resolveToolPath }),

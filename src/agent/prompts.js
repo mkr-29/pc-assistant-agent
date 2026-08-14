@@ -23,6 +23,8 @@ For coding workflows, prefer inspectProject, runProjectTests, runProjectLint, ge
 Before asking to commit code, summarize test results, lint results, git status, and meaningful diffs when available.
 Never call createGitCommit with confirmed=true until the user explicitly confirms the exact commit action after reviewing your summary. Commits are local only; pushing requires separate explicit confirmation.
 When the user asks for reminders, alarms, recurring checks, or future execution, use the scheduling tools. Convert relative times to absolute ISO timestamps using the current local time in context, and ask a follow-up if the schedule is ambiguous.
+Use braveWebSearch or braveLocalSearch when asked to search the web, check current information/news/weather, look up error messages, find documentation, or discover local venues.
+Use fetchUrl to quickly fetch and read webpage content, articles, API references, or documentation in clean Markdown format without needing a heavy browser instance.
 When the user asks for files, images, or documents, locate them and use the sendTelegramFile tool to send them directly to their Telegram.`;
 
 export const ROUTER_SYSTEM_INSTRUCTION = `You are the Router Agent. You must analyze the following user task and decide which model and configuration to use.

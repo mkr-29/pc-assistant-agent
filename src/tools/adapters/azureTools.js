@@ -33,12 +33,19 @@ const categoryKeywords = {
     scheduling: [
         'remind', 'reminder', 'schedule', 'timer', 'alarm', 'recurring', 'task', 'later', 'tomorrow', 'cron'
     ],
+    search: [
+        'search', 'brave', 'google', 'lookup', 'find', 'fetch', 'url', 'web', 'website', 'page', 'doc',
+        'docs', 'documentation', 'latest', 'news', 'query', 'article', 'online', 'http', 'https'
+    ],
     system: [
         'screen', 'screenshot', 'clipboard', 'copy', 'paste', 'terminal'
     ]
 };
 
 const toolCategories = {
+    braveWebSearch: 'search',
+    braveLocalSearch: 'search',
+    fetchUrl: 'search',
     downloadFile: 'media',
     downloadMedia: 'media',
     convertVideoToAudio: 'media',

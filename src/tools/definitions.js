@@ -1580,6 +1580,79 @@ export const videoToGifTool = {
     }
 };
 
+export const braveWebSearchTool = {
+    name: 'braveWebSearch',
+    description: 'Searches the web in real-time using Brave Search MCP / API, returning titles, URLs, descriptions, and snippets of top search results.',
+    parameters: {
+        type: 'object',
+        properties: {
+            query: {
+                type: 'string',
+                description: 'The search query or keywords to look up on the web.'
+            },
+            count: {
+                type: 'number',
+                description: 'Number of search results to return (1-20, default 10).'
+            },
+            country: {
+                type: 'string',
+                description: 'Optional 2-letter country code for localized search results (e.g. "US", "IN", "GB").'
+            },
+            searchLang: {
+                type: 'string',
+                description: 'Optional language code for search results (e.g. "en", "es").'
+            }
+        },
+        required: ['query']
+    }
+};
+
+export const braveLocalSearchTool = {
+    name: 'braveLocalSearch',
+    description: 'Searches for local businesses, places, addresses, and venues using Brave Local Search MCP / API.',
+    parameters: {
+        type: 'object',
+        properties: {
+            query: {
+                type: 'string',
+                description: 'Local query, such as "coffee shops in San Francisco" or "pizza near me".'
+            },
+            count: {
+                type: 'number',
+                description: 'Number of local results to return (default 5).'
+            }
+        },
+        required: ['query']
+    }
+};
+
+export const fetchUrlTool = {
+    name: 'fetchUrl',
+    description: 'Fetches webpage content and converts it to clean, readable Markdown text via Fetch MCP. Useful for reading web articles, documentation, or API specifications.',
+    parameters: {
+        type: 'object',
+        properties: {
+            url: {
+                type: 'string',
+                description: 'The full URL to fetch (e.g. "https://docs.docker.com/get-started/").'
+            },
+            maxLength: {
+                type: 'number',
+                description: 'Maximum number of characters to return (default 8000).'
+            },
+            startIndex: {
+                type: 'number',
+                description: 'Character index to start from for reading long documents (default 0).'
+            },
+            raw: {
+                type: 'boolean',
+                description: 'Whether to return the raw body without converting to Markdown (default false).'
+            }
+        },
+        required: ['url']
+    }
+};
+
 export const customTools = [
     fileReaderTool,
     fileWriterTool,
@@ -1641,5 +1714,9 @@ export const customTools = [
     trimMediaTool,
     getMediaInfoTool,
     compressMediaTool,
-    videoToGifTool
+    videoToGifTool,
+    braveWebSearchTool,
+    braveLocalSearchTool,
+    fetchUrlTool
 ];
+

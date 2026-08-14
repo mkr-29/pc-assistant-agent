@@ -74,7 +74,10 @@ test('custom tool declarations expose the expected tool names', () => {
             'trimMedia',
             'getMediaInfo',
             'compressMedia',
-            'videoToGif'
+            'videoToGif',
+            'braveWebSearch',
+            'braveLocalSearch',
+            'fetchUrl'
         ]
     );
 });
