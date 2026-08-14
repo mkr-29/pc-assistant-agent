@@ -16,6 +16,14 @@ const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
 const DEFAULT_GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
 const DEFAULT_INCEPTION_MODEL = 'mercury-2';
 const DEFAULT_INCEPTION_BASE_URL = 'https://api.inceptionlabs.ai/v1';
+const DEFAULT_SARVAM_MODEL = 'sarvam-105b';
+const DEFAULT_SARVAM_BASE_URL = 'https://api.sarvam.ai/v1';
+const DEFAULT_ARCEE_MODEL = 'zai-org/glm-5.2';
+const DEFAULT_ARCEE_BASE_URL = 'https://api.arcee.ai/api/v1';
+const DEFAULT_LONGCAT_MODEL = 'LongCat-2.0';
+const DEFAULT_LONGCAT_BASE_URL = 'https://api.longcat.chat/openai/v1';
+const DEFAULT_THINKING_MACHINE_MODEL = 'inkling';
+const DEFAULT_THINKING_MACHINE_BASE_URL = 'https://api.thinkingmachines.ai/v1';
 
 function parseBooleanEnv(value, defaultValue) {
     if (value === undefined || value === '') {
@@ -59,6 +67,26 @@ export function loadConfig(env = process.env) {
             apiKey: env.INCEPTION_API_KEY,
             model: env.INCEPTION_MODEL || DEFAULT_INCEPTION_MODEL,
             baseUrl: env.INCEPTION_BASE_URL || DEFAULT_INCEPTION_BASE_URL
+        },
+        sarvam: {
+            apiKey: env.SARVAM_API_KEY,
+            model: env.SARVAM_MODEL || DEFAULT_SARVAM_MODEL,
+            baseUrl: env.SARVAM_BASE_URL || DEFAULT_SARVAM_BASE_URL
+        },
+        arcee: {
+            apiKey: env.ARCEE_API_KEY,
+            model: env.ARCEE_MODEL || DEFAULT_ARCEE_MODEL,
+            baseUrl: env.ARCEE_BASE_URL || DEFAULT_ARCEE_BASE_URL
+        },
+        longcat: {
+            apiKey: env.LONGCAT_API_KEY,
+            model: env.LONGCAT_MODEL || DEFAULT_LONGCAT_MODEL,
+            baseUrl: env.LONGCAT_BASE_URL || DEFAULT_LONGCAT_BASE_URL
+        },
+        thinkingMachine: {
+            apiKey: env.THINKING_MACHINE_API_KEY,
+            model: env.THINKING_MACHINE_MODEL || DEFAULT_THINKING_MACHINE_MODEL,
+            baseUrl: env.THINKING_MACHINE_BASE_URL || DEFAULT_THINKING_MACHINE_BASE_URL
         },
         targetProjectPath: env.TARGET_PROJECT_PATH || '~',
         screenAnalysisModel: env.SCREEN_ANALYSIS_MODEL || DEFAULT_SCREEN_ANALYSIS_MODEL,

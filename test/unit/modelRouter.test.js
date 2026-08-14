@@ -150,3 +150,73 @@ test('callModelChat falls back to Inception when Gemini and Groq fail', async ()
         global.fetch = originalFetch;
     }
 });
+
+test('callModelChat falls back all the way through Sarvam, Arcee, LongCat, and Thinking Machine', async () => {
+    const fullConfig = {
+        sarvam: {
+            apiKey: 'sarvam-key',
+            model: 'sarvam-105b',
+            baseUrl: 'https://api.sarvam.ai/v1'
+        },
+        arcee: {
+            apiKey: 'arcee-key',
+            model: 'zai-org/glm-5.2',
+            baseUrl: 'https://api.arcee.ai/api/v1'
+        },
+        longcat: {
+            apiKey: 'longcat-key',
+            model: 'LongCat-2.0',
+            baseUrl: 'https://api.longcat.chat/openai/v1'
+        },
+        thinkingMachine: {
+            apiKey: 'tm-key',
+            model: 'inkling',
+            baseUrl: 'https://api.thinkingmachines.ai/v1'
+        }
+    };
+
+    const originalFetch = global.fetch;
+    const attemptedUrls = [];
+
+    global.fetch = async (url, options) => {
+        attemptedUrls.push(url);
+
+        if (url.includes('sarvam.ai')) {
+            return { ok: false, status: 500, text: async () => 'Sarvam internal error' };
+        }
+        if (url.includes('arcee.ai')) {
+            return { ok: false, status: 402, text: async () => 'Arcee payment required' };
+        }
+        if (url.includes('longcat.chat')) {
+            return { ok: false, status: 429, text: async () => 'LongCat rate limited' };
+        }
+        if (url.includes('thinkingmachines.ai')) {
+            return {
+                ok: true,
+                json: async () => ({
+                    choices: [{ message: { content: 'Thinking Machine success' } }]
+                })
+            };
+        }
+
+        return { ok: false, status: 404, text: async () => 'Not found' };
+    };
+
+    try {
+        const result = await callModelChat({
+            ai: null,
+            config: fullConfig,
+            messages: [{ role: 'user', content: 'Hello' }]
+        });
+
+        assert.equal(result, 'Thinking Machine success');
+        assert.equal(attemptedUrls.length, 4);
+        assert.ok(attemptedUrls[0].includes('sarvam.ai'));
+        assert.ok(attemptedUrls[1].includes('arcee.ai'));
+        assert.ok(attemptedUrls[2].includes('longcat.chat'));
+        assert.ok(attemptedUrls[3].includes('thinkingmachines.ai'));
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+

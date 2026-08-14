@@ -166,3 +166,53 @@ test('runAgent falls back to Groq for non-rate-limit Gemini errors', async () =>
     assert.equal(result, 'Groq answer');
     assert.deepEqual(callOrder, ['gemini', 'groq']);
 });
+
+test('runAgent cascades across all providers (Gemini -> Groq -> Inception -> Sarvam -> Arcee -> LongCat -> TM -> Azure)', async () => {
+    const callOrder = [];
+    const fullConfig = {
+        geminiApiKey: 'gemini-key',
+        groq: { apiKey: 'groq-key', model: 'llama-3.3-70b-versatile' },
+        inception: { apiKey: 'inception-key', model: 'mercury-2' },
+        sarvam: { apiKey: 'sarvam-key', model: 'sarvam-105b' },
+        arcee: { apiKey: 'arcee-key', model: 'zai-org/glm-5.2' },
+        longcat: { apiKey: 'longcat-key', model: 'LongCat-2.0' },
+        thinkingMachine: { apiKey: 'tm-key', model: 'inkling' },
+        azureOpenAI: { apiKey: 'azure-key', endpoint: 'https://azure.openai.com', deployment: 'gpt-5.5' }
+    };
+
+    const result = await runAgent({
+        userPrompt: 'Test all fallbacks',
+        chatId: 123,
+        conversationHistory: [],
+        knowledgeMemory: [],
+        bot: {},
+        config: fullConfig,
+        ai: {},
+        agentDependencies: {
+            runAgentLoopGemini: async () => { callOrder.push('gemini'); throw new Error('429'); },
+            runAgentLoopGroq: async () => { callOrder.push('groq'); throw new Error('429'); },
+            runAgentLoopInception: async () => { callOrder.push('inception'); throw new Error('500'); },
+            runAgentLoopSarvam: async () => { callOrder.push('sarvam'); throw new Error('503'); },
+            runAgentLoopArcee: async () => { callOrder.push('arcee'); throw new Error('402'); },
+            runAgentLoopLongcat: async () => { callOrder.push('longcat'); throw new Error('429'); },
+            runAgentLoopThinkingMachine: async () => { callOrder.push('thinkingMachine'); throw new Error('500'); },
+            runAgentLoopAzure: async () => {
+                callOrder.push('azure');
+                return 'Azure fallback succeeded!';
+            }
+        }
+    });
+
+    assert.equal(result, 'Azure fallback succeeded!');
+    assert.deepEqual(callOrder, [
+        'gemini',
+        'groq',
+        'inception',
+        'sarvam',
+        'arcee',
+        'longcat',
+        'thinkingMachine',
+        'azure'
+    ]);
+});
+

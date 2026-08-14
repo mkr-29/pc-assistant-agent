@@ -1325,6 +1325,261 @@ export const manipulateImageTool = {
     }
 };
 
+export const downloadFileTool = {
+    name: 'downloadFile',
+    description: 'Downloads any file from a direct HTTP/HTTPS URL and saves it to the laptop disk.',
+    parameters: {
+        type: 'object',
+        properties: {
+            url: {
+                type: 'string',
+                description: 'The direct HTTP or HTTPS URL of the file to download.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional path or directory where the file should be saved. Defaults to .data/downloads/<filename>.'
+            },
+            filename: {
+                type: 'string',
+                description: 'Optional custom filename to save as.'
+            },
+            timeoutMs: {
+                type: 'number',
+                description: 'Optional download timeout in milliseconds (default 60000).'
+            }
+        },
+        required: ['url']
+    }
+};
+
+export const downloadMediaTool = {
+    name: 'downloadMedia',
+    description: 'Downloads videos or audio from web URLs (YouTube, Twitter/X, Instagram, TikTok, Reddit, Vimeo, SoundCloud, podcasts, or direct media streams) using yt-dlp.',
+    parameters: {
+        type: 'object',
+        properties: {
+            url: {
+                type: 'string',
+                description: 'The web page or video URL to download.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output path or destination directory. Defaults to .data/downloads/%(title)s.%(ext)s.'
+            },
+            extractAudio: {
+                type: 'boolean',
+                description: 'If true, extracts and saves only the audio stream (e.g. converting video to MP3 directly on download).'
+            },
+            audioFormat: {
+                type: 'string',
+                enum: ['mp3', 'm4a', 'wav', 'aac', 'flac', 'opus'],
+                description: 'Audio format when extractAudio is true (default "mp3").'
+            },
+            videoQuality: {
+                type: 'string',
+                description: 'Desired video quality ("best", "1080p", "720p", "480p"). Default "best".'
+            }
+        },
+        required: ['url']
+    }
+};
+
+export const convertVideoToAudioTool = {
+    name: 'convertVideoToAudio',
+    description: 'Extracts audio from a video file and converts it to audio formats like MP3, M4A, WAV, AAC, FLAC, OGG, or OPUS.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the video file (e.g. mp4, mkv, mov, webm, avi).'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output audio path. Defaults to <dirname>/<basename>-audio-<timestamp>.<format>.'
+            },
+            format: {
+                type: 'string',
+                enum: ['mp3', 'm4a', 'wav', 'aac', 'flac', 'ogg', 'opus'],
+                description: 'Target audio format (default "mp3").'
+            },
+            audioBitrate: {
+                type: 'string',
+                description: 'Audio bitrate (e.g. "128k", "192k", "256k", "320k"). Default "192k".'
+            },
+            sampleRate: {
+                type: 'number',
+                description: 'Optional audio sample rate in Hz (e.g. 44100, 48000).'
+            }
+        },
+        required: ['inputPath']
+    }
+};
+
+export const convertMediaTool = {
+    name: 'convertMedia',
+    description: 'Transcodes, converts, rescales, or changes codecs/bitrates for video and audio files using FFmpeg.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the source media file.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output file path.'
+            },
+            format: {
+                type: 'string',
+                description: 'Target container format/extension (e.g. mp4, webm, mkv, mov, mp3, wav, m4a, flac, gif).'
+            },
+            videoCodec: {
+                type: 'string',
+                description: 'Optional video codec (e.g. "libx264", "libvpx-vp9", "copy").'
+            },
+            audioCodec: {
+                type: 'string',
+                description: 'Optional audio codec (e.g. "libmp3lame", "aac", "copy").'
+            },
+            videoBitrate: {
+                type: 'string',
+                description: 'Optional target video bitrate (e.g. "2M", "1500k").'
+            },
+            audioBitrate: {
+                type: 'string',
+                description: 'Optional target audio bitrate (e.g. "192k", "320k").'
+            },
+            resolution: {
+                type: 'string',
+                description: 'Optional target resolution (e.g. "1920x1080", "1280x720", "854x480", "1280:-1").'
+            },
+            fps: {
+                type: 'number',
+                description: 'Optional target frames per second (e.g. 30, 60).'
+            },
+            startTime: {
+                type: 'string',
+                description: 'Optional start time offset (e.g. "00:01:30" or "90").'
+            },
+            duration: {
+                type: 'string',
+                description: 'Optional duration limit in seconds or "HH:MM:SS".'
+            }
+        },
+        required: ['inputPath']
+    }
+};
+
+export const trimMediaTool = {
+    name: 'trimMedia',
+    description: 'Quickly trims / cuts a segment from a video or audio file with start and end/duration boundaries.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the media file to trim.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output path.'
+            },
+            startTime: {
+                type: 'string',
+                description: 'Start time timestamp (e.g. "00:00:15" or "15"). Default "0".'
+            },
+            endTime: {
+                type: 'string',
+                description: 'End time timestamp (e.g. "00:01:45" or "105").'
+            },
+            duration: {
+                type: 'string',
+                description: 'Duration in seconds or timestamp from startTime (e.g. "30" or "00:00:30").'
+            }
+        },
+        required: ['inputPath']
+    }
+};
+
+export const getMediaInfoTool = {
+    name: 'getMediaInfo',
+    description: 'Inspects detailed audio and video metadata (duration, format, resolution, fps, codecs, bitrates, audio channels) using ffprobe.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the video or audio file to inspect.'
+            }
+        },
+        required: ['inputPath']
+    }
+};
+
+export const compressMediaTool = {
+    name: 'compressMedia',
+    description: 'Compresses a video file to significantly reduce file size while maintaining good visual quality (great for Telegram limits).',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the video file to compress.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output path.'
+            },
+            crf: {
+                type: 'number',
+                description: 'Constant Rate Factor quality (default 28; higher = smaller file size, e.g. 26-32).'
+            },
+            preset: {
+                type: 'string',
+                enum: ['ultrafast', 'fast', 'medium', 'slow'],
+                description: 'Encoding speed preset (default "medium").'
+            }
+        },
+        required: ['inputPath']
+    }
+};
+
+export const videoToGifTool = {
+    name: 'videoToGif',
+    description: 'Converts a video clip into a high-quality animated GIF with custom resolution, framerate, and start/duration.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the video file.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output GIF path.'
+            },
+            fps: {
+                type: 'number',
+                description: 'Frame rate for the GIF (default 15).'
+            },
+            width: {
+                type: 'number',
+                description: 'Width in pixels, height scales automatically (default 480).'
+            },
+            startTime: {
+                type: 'string',
+                description: 'Optional start time in video (e.g. "00:00:05" or "5").'
+            },
+            duration: {
+                type: 'string',
+                description: 'Optional duration in seconds (e.g. "5" or "10").'
+            }
+        },
+        required: ['inputPath']
+    }
+};
+
 export const customTools = [
     fileReaderTool,
     fileWriterTool,
@@ -1378,5 +1633,13 @@ export const customTools = [
     adjustImageTool,
     convertImageTool,
     compositeImagesTool,
-    manipulateImageTool
+    manipulateImageTool,
+    downloadFileTool,
+    downloadMediaTool,
+    convertVideoToAudioTool,
+    convertMediaTool,
+    trimMediaTool,
+    getMediaInfoTool,
+    compressMediaTool,
+    videoToGifTool
 ];

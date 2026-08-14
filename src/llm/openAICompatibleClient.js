@@ -1,59 +1,6 @@
-function getGroqRequestUrl(config) {
-    const baseUrl = config.groq?.baseUrl?.replace(/\/+$/, '');
-
-    if (!baseUrl) {
-        throw new Error('Groq fallback is not configured. Set GROQ_BASE_URL or use the default configuration.');
-    }
-
-    return `${baseUrl}/chat/completions`;
-}
-
-function getGroqModel(config, modelName) {
-    const resolvedModel = modelName || config.groq?.model;
-
-    if (!resolvedModel) {
-        throw new Error('Groq fallback is not configured. Set GROQ_MODEL or use the default configuration.');
-    }
-
-    return resolvedModel;
-}
-
-async function postGroqChat({ config, body, fetchFn = fetch }) {
-    const apiKey = config.groq?.apiKey;
-
-    if (!apiKey) {
-        throw new Error('Groq fallback is not configured. Set GROQ_API_KEY to use Groq after Gemini rate limits.');
-    }
-
-    const response = await fetchFn(getGroqRequestUrl(config), {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-        const errText = await response.text();
-        const error = new Error(`Groq chat call failed with status ${response.status}: ${errText}`);
-        error.status = response.status;
-
-        try {
-            error.groqError = JSON.parse(errText)?.error;
-        } catch {
-            error.groqError = null;
-        }
-
-        throw error;
-    }
-
-    return response.json();
-}
-
-function parseFailedToolCall(error, groqTools = []) {
-    const failedGeneration = error?.groqError?.failed_generation;
-    if (error?.status !== 400 || error?.groqError?.code !== 'tool_use_failed' || !failedGeneration) {
+export function parseFailedToolCall(error, tools = []) {
+    const failedGeneration = error?.providerError?.failed_generation || error?.groqError?.failed_generation;
+    if (!failedGeneration) {
         return null;
     }
 
@@ -73,7 +20,7 @@ function parseFailedToolCall(error, groqTools = []) {
     }
 
     const [, name, rawArgs] = match;
-    const tool = groqTools.find(candidate => (candidate.function?.name || candidate.name) === name);
+    const tool = tools.find(candidate => (candidate.function?.name || candidate.name) === name);
     if (!tool) {
         return null;
     }
@@ -108,7 +55,7 @@ function parseFailedToolCall(error, groqTools = []) {
     return { name, args: parsedArgs };
 }
 
-async function runToolCall({ toolCall, toolImplementations, providerName }) {
+export async function runToolCall({ toolCall, toolImplementations, providerName }) {
     const { id, function: fn } = toolCall;
     const { name, arguments: argsString } = fn;
 
@@ -123,6 +70,9 @@ async function runToolCall({ toolCall, toolImplementations, providerName }) {
 
     let result;
     try {
+        if (!toolImplementations[name]) {
+            throw new Error(`Tool "${name}" is not implemented.`);
+        }
         result = await toolImplementations[name](parsedArgs);
     } catch (err) {
         console.error(`[Agent Action Error] Tool ${name} failed:`, err.message);
@@ -137,16 +87,88 @@ async function runToolCall({ toolCall, toolImplementations, providerName }) {
     };
 }
 
-export async function callGroqChat({ config, messages, modelName, fetchFn }) {
-    const resolvedModel = getGroqModel(config, modelName);
+export async function postOpenAICompatibleChat({
+    providerName,
+    baseUrl,
+    apiKey,
+    authHeader = 'Authorization',
+    authPrefix = 'Bearer ',
+    customHeaders = {},
+    body,
+    fetchFn = fetch
+}) {
+    if (!apiKey) {
+        throw new Error(`${providerName} is not configured. Missing API key.`);
+    }
 
-    console.log(`[Groq] Sending chat request to model ${resolvedModel}...`);
+    if (!baseUrl) {
+        throw new Error(`${providerName} is not configured. Missing base URL.`);
+    }
 
-    const data = await postGroqChat({
-        config,
+    const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
+    const url = cleanBaseUrl.endsWith('/chat/completions')
+        ? cleanBaseUrl
+        : `${cleanBaseUrl}/chat/completions`;
+
+    const headers = {
+        'Content-Type': 'application/json',
+        ...customHeaders
+    };
+
+    if (authHeader) {
+        headers[authHeader] = `${authPrefix}${apiKey}`.trim();
+    }
+
+    const response = await fetchFn(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        const error = new Error(`${providerName} chat call failed with status ${response.status}: ${errText}`);
+        error.status = response.status;
+
+        try {
+            const parsed = JSON.parse(errText);
+            error.providerError = parsed?.error || parsed;
+            if (providerName.toLowerCase() === 'groq') {
+                error.groqError = parsed?.error || parsed;
+            }
+        } catch {
+            error.providerError = null;
+        }
+
+        throw error;
+    }
+
+    return response.json();
+}
+
+export async function callOpenAICompatibleChat({
+    providerName,
+    baseUrl,
+    apiKey,
+    authHeader,
+    authPrefix,
+    customHeaders,
+    messages,
+    modelName,
+    fetchFn
+}) {
+    console.log(`[${providerName}] Sending chat request to model ${modelName}...`);
+
+    const data = await postOpenAICompatibleChat({
+        providerName,
+        baseUrl,
+        apiKey,
+        authHeader,
+        authPrefix,
+        customHeaders,
         fetchFn,
         body: {
-            model: resolvedModel,
+            model: modelName,
             messages
         }
     });
@@ -154,58 +176,68 @@ export async function callGroqChat({ config, messages, modelName, fetchFn }) {
     return data.choices?.[0]?.message?.content || '';
 }
 
-export async function runAgentLoopGroq({
-    config,
+export async function runAgentLoopOpenAICompatible({
+    providerName,
+    baseUrl,
+    apiKey,
+    authHeader,
+    authPrefix,
+    customHeaders,
     userPrompt,
     systemInstruction,
     toolImplementations,
-    groqTools,
+    tools,
     modelName,
+    fallbackModels = [],
     fetchFn
 }) {
-    const resolvedModel = getGroqModel(config, modelName);
     const messages = [
         { role: 'system', content: systemInstruction },
         { role: 'user', content: userPrompt }
     ];
 
-    let currentModel = resolvedModel;
+    let currentModel = modelName;
     const attemptedModels = new Set();
+    const candidateModels = [modelName, ...fallbackModels.filter(m => m !== modelName)];
 
     while (true) {
         attemptedModels.add(currentModel);
-        console.log(`[Groq] Sending request to model ${currentModel}...`);
+        console.log(`[${providerName}] Sending request to model ${currentModel}...`);
 
         let data;
         try {
-            data = await postGroqChat({
-                config,
+            data = await postOpenAICompatibleChat({
+                providerName,
+                baseUrl,
+                apiKey,
+                authHeader,
+                authPrefix,
+                customHeaders,
                 fetchFn,
                 body: {
                     model: currentModel,
                     messages,
-                    tools: groqTools
+                    tools
                 }
             });
         } catch (err) {
-            const isTpmOrRateLimit = err?.status === 413 || err?.status === 429 || err?.groqError?.code === 'rate_limit_exceeded';
+            const isTpmOrRateLimit = err?.status === 413 || err?.status === 429 || err?.providerError?.code === 'rate_limit_exceeded';
             if (isTpmOrRateLimit) {
-                const fallbackGroqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
-                const nextModel = fallbackGroqModels.find(m => !attemptedModels.has(m));
+                const nextModel = candidateModels.find(m => !attemptedModels.has(m));
                 if (nextModel) {
-                    console.warn(`[Groq] Model ${currentModel} rate/token limit reached. Switching to ${nextModel}...`);
+                    console.warn(`[${providerName}] Model ${currentModel} rate/token limit reached. Switching to ${nextModel}...`);
                     currentModel = nextModel;
                     continue;
                 }
             }
 
-            const failedToolCall = parseFailedToolCall(err, groqTools);
+            const failedToolCall = parseFailedToolCall(err, tools);
             if (!failedToolCall) {
                 throw err;
             }
 
             const toolCall = {
-                id: `groq_recovered_${messages.length}`,
+                id: `${providerName.toLowerCase()}_recovered_${messages.length}`,
                 type: 'function',
                 function: {
                     name: failedToolCall.name,
@@ -214,7 +246,7 @@ export async function runAgentLoopGroq({
             };
 
             console.warn(
-                `[Groq] Recovered malformed tool call for ${failedToolCall.name} with empty optional arguments.`
+                `[${providerName}] Recovered malformed tool call for ${failedToolCall.name} with empty optional arguments.`
             );
 
             messages.push({
@@ -222,7 +254,7 @@ export async function runAgentLoopGroq({
                 content: null,
                 tool_calls: [toolCall]
             });
-            messages.push(await runToolCall({ toolCall, toolImplementations, providerName: 'Groq' }));
+            messages.push(await runToolCall({ toolCall, toolImplementations, providerName }));
             continue;
         }
 
@@ -230,7 +262,7 @@ export async function runAgentLoopGroq({
         const assistantMessage = choice?.message;
 
         if (!assistantMessage) {
-            throw new Error('Invalid response format received from Groq.');
+            throw new Error(`Invalid response format received from ${providerName}.`);
         }
 
         messages.push(assistantMessage);
@@ -238,7 +270,7 @@ export async function runAgentLoopGroq({
         const toolCalls = assistantMessage.tool_calls;
         if (toolCalls && toolCalls.length > 0) {
             for (const toolCall of toolCalls) {
-                messages.push(await runToolCall({ toolCall, toolImplementations, providerName: 'Groq' }));
+                messages.push(await runToolCall({ toolCall, toolImplementations, providerName }));
             }
 
             continue;

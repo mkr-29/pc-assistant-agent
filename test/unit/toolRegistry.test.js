@@ -66,7 +66,15 @@ test('custom tool declarations expose the expected tool names', () => {
             'adjustImage',
             'convertImage',
             'compositeImages',
-            'manipulateImage'
+            'manipulateImage',
+            'downloadFile',
+            'downloadMedia',
+            'convertVideoToAudio',
+            'convertMedia',
+            'trimMedia',
+            'getMediaInfo',
+            'compressMedia',
+            'videoToGif'
         ]
     );
 });
