@@ -1653,6 +1653,248 @@ export const fetchUrlTool = {
     }
 };
 
+export const extractPdfTextTool = {
+    name: 'extractPdfText',
+    description: 'Extracts full text and page count from a local PDF file.',
+    parameters: {
+        type: 'object',
+        properties: {
+            filePath: {
+                type: 'string',
+                description: 'Path of the PDF file to read.'
+            },
+            maxPages: {
+                type: 'number',
+                description: 'Optional maximum number of pages to parse.'
+            }
+        },
+        required: ['filePath']
+    }
+};
+
+export const extractPdfMetadataTool = {
+    name: 'extractPdfMetadata',
+    description: 'Extracts document metadata (author, title, creation date, producer, page count) from a PDF file.',
+    parameters: {
+        type: 'object',
+        properties: {
+            filePath: {
+                type: 'string',
+                description: 'Path of the PDF file.'
+            }
+        },
+        required: ['filePath']
+    }
+};
+
+export const convertDocumentWithPandocTool = {
+    name: 'convertDocumentWithPandoc',
+    description: 'Converts documents between formats (Markdown, HTML, PDF, DOCX, LaTeX, RTF, TXT) using Pandoc or built-in conversion engines.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the source document.'
+            },
+            toFormat: {
+                type: 'string',
+                description: 'Target format extension, e.g. "html", "markdown", "pdf", "docx", "txt".'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output destination path.'
+            },
+            fromFormat: {
+                type: 'string',
+                description: 'Optional source format override.'
+            },
+            extraArgs: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Optional additional CLI arguments to pass to Pandoc.'
+            }
+        },
+        required: ['inputPath', 'toFormat']
+    }
+};
+
+export const performVisionOcrTool = {
+    name: 'performVisionOcr',
+    description: 'Performs high-accuracy Optical Character Recognition (OCR) on an image file using native macOS Apple Vision framework or multimodal AI.',
+    parameters: {
+        type: 'object',
+        properties: {
+            imagePath: {
+                type: 'string',
+                description: 'Path of the image or screenshot to extract text from.'
+            },
+            recognitionLevel: {
+                type: 'string',
+                enum: ['accurate', 'fast'],
+                description: 'Vision OCR recognition accuracy level (default "accurate").'
+            }
+        },
+        required: ['imagePath']
+    }
+};
+
+export const generateChartImageTool = {
+    name: 'generateChartImage',
+    description: 'Generates professional visual charts (bar, line, pie, doughnut, radar, scatter) from data or Vega-Lite specs and saves the rendered image to disk ready for Telegram delivery.',
+    parameters: {
+        type: 'object',
+        properties: {
+            chartType: {
+                type: 'string',
+                enum: ['bar', 'line', 'pie', 'doughnut', 'radar', 'scatter', 'bubble'],
+                description: 'Type of chart to render (default "bar").'
+            },
+            title: {
+                type: 'string',
+                description: 'Chart header title.'
+            },
+            labels: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'X-axis or category labels (e.g. ["Q1", "Q2", "Q3", "Q4"]).'
+            },
+            datasets: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: {
+                        label: { type: 'string' },
+                        data: { type: 'array', items: { type: 'number' } },
+                        backgroundColor: { type: 'string' },
+                        borderColor: { type: 'string' }
+                    },
+                    required: ['data']
+                },
+                description: 'Data series arrays and styling.'
+            },
+            chartConfig: {
+                type: 'object',
+                description: 'Optional full Chart.js configuration object.'
+            },
+            vegaLiteSpec: {
+                type: 'object',
+                description: 'Optional Vega-Lite specification object.'
+            },
+            width: {
+                type: 'number',
+                description: 'Image width in pixels (default 600).'
+            },
+            height: {
+                type: 'number',
+                description: 'Image height in pixels (default 400).'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output PNG file path.'
+            }
+        }
+    }
+};
+
+export const getYoutubeTranscriptTool = {
+    name: 'getYoutubeTranscript',
+    description: 'Fetches the complete text transcript, timestamps, durations, and chapters for a YouTube video URL or ID without downloading video/audio.',
+    parameters: {
+        type: 'object',
+        properties: {
+            videoUrl: {
+                type: 'string',
+                description: 'YouTube video URL or 11-character video ID.'
+            },
+            lang: {
+                type: 'string',
+                description: 'Preferred subtitle language code (default "en").'
+            },
+            includeChapters: {
+                type: 'boolean',
+                description: 'Whether to include video chapters in the output (default true).'
+            }
+        },
+        required: ['videoUrl']
+    }
+};
+
+export const parseSitemapTool = {
+    name: 'parseSitemap',
+    description: 'Fetches and parses a website sitemap (sitemap.xml or sitemap index), returning all indexed page URLs and last-modified dates.',
+    parameters: {
+        type: 'object',
+        properties: {
+            sitemapUrl: {
+                type: 'string',
+                description: 'URL of the sitemap.xml file or website domain.'
+            }
+        },
+        required: ['sitemapUrl']
+    }
+};
+
+export const crawlWebDocumentationTool = {
+    name: 'crawlWebDocumentation',
+    description: 'Crawls a documentation site recursively starting from a root URL up to maxPages, extracting clean Markdown for each page and optionally saving them locally.',
+    parameters: {
+        type: 'object',
+        properties: {
+            startUrl: {
+                type: 'string',
+                description: 'Starting documentation URL to crawl.'
+            },
+            maxPages: {
+                type: 'number',
+                description: 'Maximum number of pages to crawl (1-50, default 10).'
+            },
+            urlFilter: {
+                type: 'string',
+                description: 'Optional regex pattern to only crawl URLs matching specific paths (e.g. "/docs/" or "/guide/").'
+            },
+            saveToDirectory: {
+                type: 'string',
+                description: 'Optional local directory to save crawled Markdown files.'
+            }
+        },
+        required: ['startUrl']
+    }
+};
+
+export const getMacClipboardHistoryTool = {
+    name: 'getMacClipboardHistory',
+    description: 'Retrieves recent clipboard history items on macOS (integrating with Maccy or local assistant clipboard history).',
+    parameters: {
+        type: 'object',
+        properties: {
+            limit: {
+                type: 'number',
+                description: 'Number of recent clipboard entries to retrieve (default 10).'
+            }
+        }
+    }
+};
+
+export const searchClipboardHistoryTool = {
+    name: 'searchClipboardHistory',
+    description: 'Searches through macOS clipboard history (Maccy / local history) for matching text, URLs, or code snippets.',
+    parameters: {
+        type: 'object',
+        properties: {
+            query: {
+                type: 'string',
+                description: 'Search keyword to filter clipboard history.'
+            },
+            limit: {
+                type: 'number',
+                description: 'Maximum number of matches to return (default 10).'
+            }
+        },
+        required: ['query']
+    }
+};
+
 export const customTools = [
     fileReaderTool,
     fileWriterTool,
@@ -1717,6 +1959,17 @@ export const customTools = [
     videoToGifTool,
     braveWebSearchTool,
     braveLocalSearchTool,
-    fetchUrlTool
+    fetchUrlTool,
+    extractPdfTextTool,
+    extractPdfMetadataTool,
+    convertDocumentWithPandocTool,
+    performVisionOcrTool,
+    generateChartImageTool,
+    getYoutubeTranscriptTool,
+    parseSitemapTool,
+    crawlWebDocumentationTool,
+    getMacClipboardHistoryTool,
+    searchClipboardHistoryTool
 ];
+
 

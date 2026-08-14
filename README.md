@@ -130,6 +130,20 @@ The assistant has dedicated project helpers for coding tasks:
 - `getGitStatus` and `summarizeGitDiff` inspect local git state without changing it.
 - `createGitCommit` creates a local commit only after explicit user confirmation and never pushes.
 
+## MCP & Web Intelligence Tools
+
+The assistant includes specialized Model Context Protocol (MCP) and web intelligence tools:
+
+- **Brave Web & Local Search** (`braveWebSearch`, `braveLocalSearch`): Real-time web search and local place lookup.
+- **Fetch MCP** (`fetchUrl`): Fast web page fetching with clean Markdown conversion without headless browser overhead.
+- **PDF & Document Extractor** (`extractPdfText`, `extractPdfMetadata`): Extracts text, page counts, and document metadata from local PDF files.
+- **Pandoc Document Converter** (`convertDocumentWithPandoc`): Converts documents between Markdown, HTML, PDF, DOCX, LaTeX, RTF, and text.
+- **macOS Vision OCR** (`performVisionOcr`): Native Apple Vision framework OCR and multimodal OCR for images, receipts, and screenshots.
+- **Chart & Visualization Generator** (`generateChartImage`): Generates bar, line, pie, doughnut, radar, and scatter chart images ready for Telegram delivery.
+- **YouTube Transcript & Chapters** (`getYoutubeTranscript`): Fetches complete transcripts, timestamps, and chapters from YouTube video URLs.
+- **Sitemap & Web Documentation Crawler** (`parseSitemap`, `crawlWebDocumentation`): Parses sitemaps and recursively crawls web documentation into local Markdown files.
+- **Mac Clipboard History** (`getMacClipboardHistory`, `searchClipboardHistory`): Searches and retrieves past clipboard history entries (integrated with Maccy and local history store).
+
 ## Testing
 
 ```bash

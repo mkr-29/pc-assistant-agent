@@ -77,7 +77,17 @@ test('custom tool declarations expose the expected tool names', () => {
             'videoToGif',
             'braveWebSearch',
             'braveLocalSearch',
-            'fetchUrl'
+            'fetchUrl',
+            'extractPdfText',
+            'extractPdfMetadata',
+            'convertDocumentWithPandoc',
+            'performVisionOcr',
+            'generateChartImage',
+            'getYoutubeTranscript',
+            'parseSitemap',
+            'crawlWebDocumentation',
+            'getMacClipboardHistory',
+            'searchClipboardHistory'
         ]
     );
 });

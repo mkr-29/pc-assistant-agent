@@ -95,3 +95,27 @@ test('readClipboard returns structured command failures', async () => {
     assert.equal(result.status, 'Error');
     assert.match(result.message, /pbpaste failed: clipboard denied/);
 });
+
+test('getMacClipboardHistory and searchClipboardHistory return history from local tracking', async () => {
+    const fakeSpawn = createSuccessfulSpawn();
+    const tempFile = `/tmp/test-clipboard-history-${Date.now()}.json`;
+
+    const tools = createClipboardTools({
+        platform: 'darwin',
+        spawnImpl: fakeSpawn.spawnImpl,
+        historyFilePath: tempFile
+    });
+
+    await tools.writeClipboard({ content: 'first copied text' });
+    await tools.writeClipboard({ content: 'second copied url https://example.com' });
+
+    const historyRes = await tools.getMacClipboardHistory({ limit: 5 });
+    assert.equal(historyRes.status, 'Success');
+    assert.equal(historyRes.count, 2);
+
+    const searchRes = await tools.searchClipboardHistory({ query: 'example.com' });
+    assert.equal(searchRes.status, 'Success');
+    assert.equal(searchRes.count, 1);
+    assert.ok(searchRes.history[0].text.includes('https://example.com'));
+});
+

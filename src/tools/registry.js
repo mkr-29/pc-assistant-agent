@@ -14,6 +14,11 @@ import { createTelegramFileTools } from './implementations/telegramFileTools.js'
 
 import { createExtensionTools } from './implementations/extensionTools.js';
 import { createMcpTools } from './implementations/mcpTools.js';
+import { createDocumentTools } from './implementations/documentTools.js';
+import { createOcrTools } from './implementations/ocrTools.js';
+import { createChartTools } from './implementations/chartTools.js';
+import { createYoutubeTranscriptTools } from './implementations/youtubeTranscriptTools.js';
+import { createCrawlerTools } from './implementations/crawlerTools.js';
 
 export function createToolRegistry({
     bot,
@@ -29,6 +34,11 @@ export function createToolRegistry({
         ...createBrowserTools({ config }),
         ...createExtensionTools(),
         ...createMcpTools({ config }),
+        ...createDocumentTools({ resolveToolPath }),
+        ...createOcrTools({ resolveToolPath, ai, config }),
+        ...createChartTools({ resolveToolPath }),
+        ...createYoutubeTranscriptTools(),
+        ...createCrawlerTools({ resolveToolPath }),
         ...createClipboardTools(),
         ...createDownloadTools({ resolveToolPath }),
         ...createFilesystemTools({ resolveToolPath }),

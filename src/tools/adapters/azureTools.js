@@ -35,10 +35,11 @@ const categoryKeywords = {
     ],
     search: [
         'search', 'brave', 'google', 'lookup', 'find', 'fetch', 'url', 'web', 'website', 'page', 'doc',
-        'docs', 'documentation', 'latest', 'news', 'query', 'article', 'online', 'http', 'https'
+        'docs', 'documentation', 'latest', 'news', 'query', 'article', 'online', 'http', 'https',
+        'pdf', 'pandoc', 'convert', 'sitemap', 'crawl', 'ocr', 'chart', 'plot', 'graph', 'youtube', 'transcript'
     ],
     system: [
-        'screen', 'screenshot', 'clipboard', 'copy', 'paste', 'terminal'
+        'screen', 'screenshot', 'clipboard', 'copy', 'paste', 'terminal', 'history', 'maccy'
     ]
 };
 
@@ -46,6 +47,16 @@ const toolCategories = {
     braveWebSearch: 'search',
     braveLocalSearch: 'search',
     fetchUrl: 'search',
+    extractPdfText: 'search',
+    extractPdfMetadata: 'search',
+    convertDocumentWithPandoc: 'search',
+    parseSitemap: 'search',
+    crawlWebDocumentation: 'search',
+    getYoutubeTranscript: 'media',
+    generateChartImage: 'image',
+    performVisionOcr: 'image',
+    getMacClipboardHistory: 'system',
+    searchClipboardHistory: 'system',
     downloadFile: 'media',
     downloadMedia: 'media',
     convertVideoToAudio: 'media',

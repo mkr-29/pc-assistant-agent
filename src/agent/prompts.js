@@ -25,6 +25,13 @@ Never call createGitCommit with confirmed=true until the user explicitly confirm
 When the user asks for reminders, alarms, recurring checks, or future execution, use the scheduling tools. Convert relative times to absolute ISO timestamps using the current local time in context, and ask a follow-up if the schedule is ambiguous.
 Use braveWebSearch or braveLocalSearch when asked to search the web, check current information/news/weather, look up error messages, find documentation, or discover local venues.
 Use fetchUrl to quickly fetch and read webpage content, articles, API references, or documentation in clean Markdown format without needing a heavy browser instance.
+Use extractPdfText or extractPdfMetadata when the user asks to read, analyze, or summarize local PDF documents.
+Use convertDocumentWithPandoc to convert documents between Markdown, HTML, PDF, DOCX, LaTeX, RTF, or plain text formats.
+Use performVisionOcr to perform Optical Character Recognition (OCR) and transcribe text from images, receipts, screenshots, or documents locally via Apple Vision.
+Use generateChartImage to create bar, line, pie, doughnut, or radar charts from data or Vega-Lite specs, then send the rendered chart to the user with sendTelegramFile.
+Use getYoutubeTranscript when asked for transcripts, video summaries, or chapters of YouTube videos.
+Use parseSitemap or crawlWebDocumentation to parse sitemaps and recursively crawl entire documentation websites into clean Markdown.
+Use getMacClipboardHistory or searchClipboardHistory when the user asks to search past clipboard items or retrieve previously copied snippets/URLs.
 When the user asks for files, images, or documents, locate them and use the sendTelegramFile tool to send them directly to their Telegram.`;
 
 export const ROUTER_SYSTEM_INSTRUCTION = `You are the Router Agent. You must analyze the following user task and decide which model and configuration to use.
