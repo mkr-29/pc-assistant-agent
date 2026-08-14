@@ -39,6 +39,9 @@ export function createExtensionTools({ screenshotDirectory = DEFAULT_SCREENSHOT_
         extensionDomSnapshot: ({ tabQuery, tabId, maxTextLength, maxElements } = {}) =>
             runExtensionAction('DOM_SNAPSHOT', { tabQuery, tabId, maxTextLength, maxElements }),
 
+        extensionExtractPageSemantics: ({ tabQuery, tabId, maxContentLength, includeTables, includeForms, includeOutline } = {}) =>
+            runExtensionAction('EXTRACT_PAGE_SEMANTICS', { tabQuery, tabId, maxContentLength, includeTables, includeForms, includeOutline }),
+
         extensionClick: ({ tabQuery, tabId, selector, text } = {}) =>
             runExtensionAction('CLICK_ELEMENT', { tabQuery, tabId, selector, text }),
 

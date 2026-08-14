@@ -498,6 +498,40 @@ export const browserSnapshotTool = {
     }
 };
 
+export const browserExtractPageSemanticsTool = {
+    name: 'browserExtractPageSemantics',
+    description: 'Extracts deep semantic page data (metadata, main article body, heading outline, landmarks, forms, and data tables) from a URL or active page in the managed browser.',
+    parameters: {
+        type: 'object',
+        properties: {
+            url: {
+                type: 'string',
+                description: 'Optional target web URL. If provided, navigates to the URL before extraction.'
+            },
+            maxContentLength: {
+                type: 'number',
+                description: 'Optional maximum character length for extracted main body content. Defaults to 5000.'
+            },
+            includeTables: {
+                type: 'boolean',
+                description: 'Whether to extract and format HTML data tables as Markdown. Defaults to true.'
+            },
+            includeForms: {
+                type: 'boolean',
+                description: 'Whether to extract form fields and input structures. Defaults to true.'
+            },
+            includeOutline: {
+                type: 'boolean',
+                description: 'Whether to extract heading outline tree (h1-h6). Defaults to true.'
+            },
+            takeScreenshot: {
+                type: 'boolean',
+                description: 'Optional boolean. When true, captures a PNG screenshot after extraction.'
+            }
+        }
+    }
+};
+
 export const browserClickTool = {
     name: 'browserClick',
     description: 'Clicks an element in the managed browser by CSS selector or visible text.',
@@ -761,6 +795,40 @@ export const extensionDomSnapshotTool = {
     }
 };
 
+export const extensionExtractPageSemanticsTool = {
+    name: 'extensionExtractPageSemantics',
+    description: 'Extracts deep semantic page data (metadata, main article body, heading outline, landmarks, forms, and data tables) from a real browser tab via Chrome Extension.',
+    parameters: {
+        type: 'object',
+        properties: {
+            tabQuery: {
+                type: 'string',
+                description: 'Optional tab search query, e.g. "YouTube Music" or "GitHub".'
+            },
+            tabId: {
+                type: 'number',
+                description: 'Optional numeric Chrome tab ID.'
+            },
+            maxContentLength: {
+                type: 'number',
+                description: 'Optional maximum content length for main text extraction. Defaults to 5000.'
+            },
+            includeTables: {
+                type: 'boolean',
+                description: 'Whether to extract and format HTML data tables as Markdown. Defaults to true.'
+            },
+            includeForms: {
+                type: 'boolean',
+                description: 'Whether to extract form fields and input structures. Defaults to true.'
+            },
+            includeOutline: {
+                type: 'boolean',
+                description: 'Whether to extract heading outline tree (h1-h6). Defaults to true.'
+            }
+        }
+    }
+};
+
 export const extensionClickTool = {
     name: 'extensionClick',
     description: 'Clicks an element natively inside a real browser tab by CSS selector or visible text via Chrome Extension.',
@@ -879,6 +947,7 @@ export const customTools = [
     extensionActivateTabTool,
     extensionMediaControlTool,
     extensionDomSnapshotTool,
+    extensionExtractPageSemanticsTool,
     extensionClickTool,
     extensionTypeTool,
     extensionExecuteJsTool,
@@ -896,6 +965,7 @@ export const customTools = [
     describeScreenTool,
     browserNavigateTool,
     browserSnapshotTool,
+    browserExtractPageSemanticsTool,
     browserClickTool,
     browserTypeTool,
     browserPressKeyTool,

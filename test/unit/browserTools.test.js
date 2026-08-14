@@ -93,11 +93,24 @@ class FakePage {
         return new FakeLocator(this, `role:${role}:${options.name}`);
     }
 
-    async evaluate(_fn, { textLimit, elementLimit }) {
+    async evaluate(_fn, args) {
+        if (args && args.textLimit !== undefined) {
+            return {
+                visibleText: this.rawText.slice(0, args.textLimit),
+                textTruncated: this.rawText.length > args.textLimit,
+                elements: this.snapshotElements.slice(0, args.elementLimit)
+            };
+        }
         return {
-            visibleText: this.rawText.slice(0, textLimit),
-            textTruncated: this.rawText.length > textLimit,
-            elements: this.snapshotElements.slice(0, elementLimit)
+            url: this.currentUrl,
+            title: 'Example Page',
+            metadata: { title: 'Example Page', description: 'Test description' },
+            mainContent: { text: this.rawText, truncated: false, wordCount: 6, readingTimeMinutes: 1 },
+            headingOutline: [{ level: 1, text: 'Main Heading', id: null, selector: 'h1' }],
+            landmarks: [],
+            forms: [],
+            tables: [],
+            interactiveElements: this.snapshotElements
         };
     }
 
@@ -280,4 +293,18 @@ test('browser tools return structured errors', async () => {
 
     assert.equal(result.status, 'Error');
     assert.match(result.message, /http:\/\/ or https:\/\//);
+});
+
+test('browserExtractPageSemantics extracts semantic page data', async () => {
+    const fake = createFakeChromium();
+    const tools = createBrowserTools({ chromiumImpl: fake.chromiumImpl });
+
+    const result = await tools.browserExtractPageSemantics({ url: 'https://example.com/article' });
+
+    assert.equal(result.status, 'Success');
+    assert.equal(result.url, 'https://example.com/article');
+    assert.equal(result.title, 'Example Page');
+    assert.ok(result.data);
+    assert.equal(result.data.mainContent.text, 'Hello world from the browser page');
+    assert.equal(result.data.headingOutline.length, 1);
 });
