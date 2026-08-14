@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import {
     formatErrorMessage,
     formatTaskCompleteMarkdown,
@@ -33,6 +35,30 @@ function getCommandPayload(text) {
     }
 
     return text.trim().split(/\s+/).slice(1).join(' ').trim();
+}
+
+export function isImageMessage(message) {
+    if (Array.isArray(message?.photo) && message.photo.length > 0) {
+        return true;
+    }
+    if (message?.document) {
+        const mime = message.document.mime_type || '';
+        const fileName = message.document.file_name || '';
+        const ext = path.extname(fileName).toLowerCase();
+        return mime.startsWith('image/') || ['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tiff', '.gif'].includes(ext);
+    }
+    return false;
+}
+
+export function createImagePrompt(imagePath, caption) {
+    const captionText = caption && caption.trim().length > 0 ? caption.trim() : 'Please inspect or process this image.';
+    return [
+        `The user sent an image in Telegram: "${imagePath}".`,
+        `User instruction / caption: "${captionText}"`,
+        '',
+        'Use image manipulation tools (getImageInfo, cropImage, resizeImage, removeImageBackground, adjustImage, convertImage, manipulateImage) or file tools as needed.',
+        'If the user requested the processed image or an image result back, use sendTelegramFile to upload the output image back to them in Telegram.'
+    ].join('\n');
 }
 
 function formatMemoryList(memories) {
@@ -82,16 +108,18 @@ export function createTelegramMessageHandler({
     knowledgeMemoryStore,
     runAgent,
     approvalManager,
-    voiceNoteTranscriber
+    voiceNoteTranscriber,
+    uploadDir = path.join(process.cwd(), '.data', 'uploads')
 }) {
     return async function handleTelegramMessage(chatId, text, username = 'User', message = {}) {
         const isVoice = isVoiceMessage(message);
+        const isImage = isImageMessage(message);
 
         console.log('\n--- [Telegram Input Log] ---');
         console.log(`Timestamp: ${new Date().toISOString()}`);
         console.log(`From User: ${username}`);
         console.log(`Chat ID: ${chatId}`);
-        console.log(isVoice ? 'Message Type: voice' : `Message Text: "${text}"`);
+        console.log(isVoice ? 'Message Type: voice' : isImage ? 'Message Type: image' : `Message Text: "${text}"`);
         console.log('-----------------------------\n');
 
         if (String(chatId) !== String(config.allowedChatId)) {
@@ -160,6 +188,25 @@ export function createTelegramMessageHandler({
                 const transcript = await voiceNoteTranscriber.transcribe(message);
                 userPrompt = createVoiceNotePrompt(transcript);
                 historyPrompt = `Voice note transcript:\n${transcript}`;
+            } else if (isImage) {
+                if (!fs.existsSync(uploadDir)) {
+                    fs.mkdirSync(uploadDir, { recursive: true });
+                }
+
+                const fileId = Array.isArray(message.photo) && message.photo.length > 0
+                    ? message.photo[message.photo.length - 1].file_id
+                    : message.document.file_id;
+
+                let downloadedPath = null;
+                if (typeof bot.downloadFile === 'function') {
+                    downloadedPath = await bot.downloadFile(fileId, uploadDir);
+                } else {
+                    downloadedPath = path.join(uploadDir, `photo_${fileId}.jpg`);
+                }
+
+                const caption = message.caption || text || '';
+                userPrompt = createImagePrompt(downloadedPath, caption);
+                historyPrompt = `User sent image: ${downloadedPath}${caption ? ` with caption: "${caption}"` : ''}`;
             } else if (!hasText(text)) {
                 return;
             }
@@ -206,3 +253,4 @@ export function createTelegramMessageHandler({
         }
     };
 }
+

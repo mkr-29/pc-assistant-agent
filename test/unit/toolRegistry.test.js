@@ -56,7 +56,17 @@ test('custom tool declarations expose the expected tool names', () => {
             'scheduleReminder',
             'scheduleAgentTask',
             'listScheduledTasks',
-            'cancelScheduledTask'
+            'cancelScheduledTask',
+            'generateImage',
+            'getImageInfo',
+            'removeImageBackground',
+            'cropImage',
+            'resizeImage',
+            'rotateImage',
+            'adjustImage',
+            'convertImage',
+            'compositeImages',
+            'manipulateImage'
         ]
     );
 });

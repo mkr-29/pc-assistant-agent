@@ -3,6 +3,7 @@ import { createBrowserTools } from './implementations/browserTools.js';
 import { createAppControlTools } from './implementations/appControlTools.js';
 import { createClipboardTools } from './implementations/clipboardTools.js';
 import { createFilesystemTools } from './implementations/filesystemTools.js';
+import { createImageTools } from './implementations/imageTools.js';
 import { createProjectTools } from './implementations/projectTools.js';
 import { createReminderTools } from './implementations/reminderTools.js';
 import { createScreenTools } from './implementations/screenTools.js';
@@ -26,6 +27,7 @@ export function createToolRegistry({
         ...createExtensionTools(),
         ...createClipboardTools(),
         ...createFilesystemTools({ resolveToolPath }),
+        ...createImageTools({ resolveToolPath, ai, config }),
         ...createProjectTools({ resolveToolPath }),
         ...createReminderTools({ chatId, reminderScheduler }),
         ...createScreenTools({ ai, config }),
@@ -41,3 +43,4 @@ export function createToolRegistry({
         approvalManager
     });
 }
+

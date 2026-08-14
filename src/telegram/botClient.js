@@ -22,10 +22,10 @@ export function startPolling({ bot, handleTelegramMessage }) {
         });
 
     bot.on('message', msg => {
-        if (!msg.text && !msg.voice) return;
+        if (!msg.text && !msg.voice && !msg.photo && !msg.document) return;
 
         const chatId = msg.chat.id;
-        const text = msg.text;
+        const text = msg.text || msg.caption || '';
         const username = msg.from?.username || msg.from?.first_name || 'User';
 
         handleTelegramMessage(chatId, text, username, msg);

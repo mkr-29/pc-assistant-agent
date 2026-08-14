@@ -931,6 +931,400 @@ export const extensionTakeScreenshotTool = {
     }
 };
 
+export const generateImageTool = {
+    name: 'generateImage',
+    description: 'Generates a new AI image from a text prompt (using Imagen 3 or high-quality AI image generation) and saves it to disk.',
+    parameters: {
+        type: 'object',
+        properties: {
+            prompt: {
+                type: 'string',
+                description: 'Detailed description of the image to generate.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional path where the generated image will be saved. Defaults to .data/generated_images/generated-<timestamp>.png.'
+            },
+            aspectRatio: {
+                type: 'string',
+                enum: ['1:1', '16:9', '4:3', '3:4', '9:16'],
+                description: 'Desired aspect ratio (default "1:1").'
+            },
+            width: {
+                type: 'number',
+                description: 'Optional custom width in pixels.'
+            },
+            height: {
+                type: 'number',
+                description: 'Optional custom height in pixels.'
+            },
+            format: {
+                type: 'string',
+                enum: ['png', 'jpeg', 'jpg', 'webp'],
+                description: 'Output format (default "png").'
+            }
+        },
+        required: ['prompt']
+    }
+};
+
+export const getImageInfoTool = {
+    name: 'getImageInfo',
+    description: 'Inspects image dimensions, format, color space, channels, aspect ratio, transparency (hasAlpha), and file size.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'The absolute, project-relative, or tilde path of the image file.'
+            }
+        },
+        required: ['inputPath']
+    }
+};
+
+export const removeImageBackgroundTool = {
+    name: 'removeImageBackground',
+    description: 'Removes the background from an image locally using AI, producing a transparent PNG or optional colored backdrop.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the source image to process.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional path where the output image should be saved. Defaults to <dirname>/<basename>-nobg-<timestamp>.png.'
+            },
+            backgroundColor: {
+                type: 'string',
+                description: 'Optional replacement solid background color (e.g. "#ffffff", "white", "black"). If omitted, background is transparent.'
+            }
+        },
+        required: ['inputPath']
+    }
+};
+
+export const cropImageTool = {
+    name: 'cropImage',
+    description: 'Crops an image to a specified rectangular region [left, top, width, height] in pixels.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the image to crop.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output path. Defaults to <dirname>/<basename>-cropped-<timestamp>.ext.'
+            },
+            left: {
+                type: 'number',
+                description: 'X coordinate of the top-left corner of the crop region (default 0).'
+            },
+            top: {
+                type: 'number',
+                description: 'Y coordinate of the top-left corner of the crop region (default 0).'
+            },
+            width: {
+                type: 'number',
+                description: 'Width in pixels of the crop region.'
+            },
+            height: {
+                type: 'number',
+                description: 'Height in pixels of the crop region.'
+            }
+        },
+        required: ['inputPath', 'width', 'height']
+    }
+};
+
+export const resizeImageTool = {
+    name: 'resizeImage',
+    description: 'Resizes an image with high-quality resampling and configurable fit modes (cover, contain, fill, inside, outside).',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the source image to resize.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output path.'
+            },
+            width: {
+                type: 'number',
+                description: 'Target width in pixels.'
+            },
+            height: {
+                type: 'number',
+                description: 'Target height in pixels.'
+            },
+            fit: {
+                type: 'string',
+                enum: ['cover', 'contain', 'fill', 'inside', 'outside'],
+                description: 'How the image should fit into the dimensions (default "cover").'
+            },
+            position: {
+                type: 'string',
+                description: 'Position when fit is cover/contain ("center", "top", "bottom", "left", "right", "entropy", "attention").'
+            },
+            background: {
+                type: 'string',
+                description: 'Background color when fitting with letterboxing (contain), e.g. "#ffffff" or "#00000000".'
+            },
+            withoutEnlargement: {
+                type: 'boolean',
+                description: 'Do not enlarge if image is already smaller than target dimensions.'
+            }
+        },
+        required: ['inputPath']
+    }
+};
+
+export const rotateImageTool = {
+    name: 'rotateImage',
+    description: 'Rotates an image by specified degrees (e.g. 90, 180, 270) and/or flips vertically/horizontally.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the image to rotate.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output path.'
+            },
+            angle: {
+                type: 'number',
+                description: 'Angle of rotation in degrees (e.g. 90, 180, 270, 45). Default 0.'
+            },
+            flip: {
+                type: 'boolean',
+                description: 'Flip image vertically (default false).'
+            },
+            flop: {
+                type: 'boolean',
+                description: 'Flip image horizontally (default false).'
+            },
+            background: {
+                type: 'string',
+                description: 'Background color for non-perpendicular rotations (default transparent "#00000000").'
+            }
+        },
+        required: ['inputPath']
+    }
+};
+
+export const adjustImageTool = {
+    name: 'adjustImage',
+    description: 'Adjusts image colors, brightness, contrast, saturation, hue, sharpness, blur, gamma, grayscale, or invert.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the source image.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output path.'
+            },
+            brightness: {
+                type: 'number',
+                description: 'Brightness multiplier (e.g. 1.2 for +20% brightness, 0.8 for darker).'
+            },
+            contrast: {
+                type: 'number',
+                description: 'Contrast multiplier (e.g. 1.3 for increased contrast, 0.8 for decreased).'
+            },
+            saturation: {
+                type: 'number',
+                description: 'Saturation multiplier (e.g. 1.5 for vibrant, 0 for black & white).'
+            },
+            hue: {
+                type: 'number',
+                description: 'Hue rotation in degrees (e.g. 90, 180).'
+            },
+            grayscale: {
+                type: 'boolean',
+                description: 'Convert to 8-bit grayscale (black and white).'
+            },
+            invert: {
+                type: 'boolean',
+                description: 'Invert colors / negative.'
+            },
+            blur: {
+                type: 'number',
+                description: 'Blur sigma (e.g. 2 for light blur, 5 for heavy blur).'
+            },
+            sharpen: {
+                type: 'number',
+                description: 'Sharpen sigma (e.g. 1 for light sharpen, 3 for strong sharpen).'
+            },
+            tint: {
+                type: 'string',
+                description: 'Tint color to apply, e.g. "#ffaa00" for sepia/warm tone.'
+            }
+        },
+        required: ['inputPath']
+    }
+};
+
+export const convertImageTool = {
+    name: 'convertImage',
+    description: 'Converts an image between formats (PNG, JPEG, WebP, AVIF, TIFF, GIF) with quality/compression control.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path of the source image.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output path. If omitted, uses format extension.'
+            },
+            format: {
+                type: 'string',
+                enum: ['png', 'jpeg', 'jpg', 'webp', 'avif', 'tiff', 'gif'],
+                description: 'Target format.'
+            },
+            quality: {
+                type: 'number',
+                description: 'Quality level from 1 to 100 (default 90).'
+            },
+            lossless: {
+                type: 'boolean',
+                description: 'Lossless compression (for webp / avif).'
+            }
+        },
+        required: ['inputPath', 'format']
+    }
+};
+
+export const compositeImagesTool = {
+    name: 'compositeImages',
+    description: 'Composites / overlays one or more images onto a base image (e.g. watermarking, layering, collage).',
+    parameters: {
+        type: 'object',
+        properties: {
+            baseImagePath: {
+                type: 'string',
+                description: 'Path to base/background image.'
+            },
+            overlays: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: {
+                        imagePath: { type: 'string', description: 'Path to overlay image.' },
+                        left: { type: 'number', description: 'Left pixel offset.' },
+                        top: { type: 'number', description: 'Top pixel offset.' },
+                        gravity: { type: 'string', description: 'Gravity placement (center, northwest, northeast, southeast, southwest).' },
+                        blend: { type: 'string', description: 'Blend mode (over, multiply, screen, overlay, darken, lighten, etc.).' }
+                    },
+                    required: ['imagePath']
+                },
+                description: 'Array of overlay layers to composite on top.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional output path.'
+            }
+        },
+        required: ['baseImagePath', 'overlays']
+    }
+};
+
+export const manipulateImageTool = {
+    name: 'manipulateImage',
+    description: 'Comprehensive multi-step image pipeline combining background removal, crop, resize, rotate, adjustments, trim, and format conversion in a single call.',
+    parameters: {
+        type: 'object',
+        properties: {
+            inputPath: {
+                type: 'string',
+                description: 'Path to the source image.'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional destination path.'
+            },
+            removeBackground: {
+                type: 'boolean',
+                description: 'Remove background using AI before other operations.'
+            },
+            backgroundColor: {
+                type: 'string',
+                description: 'Optional solid background color replacement.'
+            },
+            crop: {
+                type: 'object',
+                properties: {
+                    left: { type: 'number' },
+                    top: { type: 'number' },
+                    width: { type: 'number' },
+                    height: { type: 'number' }
+                },
+                description: 'Crop bounding box.'
+            },
+            resize: {
+                type: 'object',
+                properties: {
+                    width: { type: 'number' },
+                    height: { type: 'number' },
+                    fit: { type: 'string', enum: ['cover', 'contain', 'fill', 'inside', 'outside'] },
+                    position: { type: 'string' },
+                    background: { type: 'string' }
+                },
+                description: 'Resize options.'
+            },
+            rotate: {
+                type: 'object',
+                properties: {
+                    angle: { type: 'number' },
+                    flip: { type: 'boolean' },
+                    flop: { type: 'boolean' }
+                },
+                description: 'Rotation and flipping.'
+            },
+            adjust: {
+                type: 'object',
+                properties: {
+                    brightness: { type: 'number' },
+                    contrast: { type: 'number' },
+                    saturation: { type: 'number' },
+                    hue: { type: 'number' },
+                    grayscale: { type: 'boolean' },
+                    invert: { type: 'boolean' },
+                    blur: { type: 'number' },
+                    sharpen: { type: 'number' }
+                },
+                description: 'Color and filter adjustments.'
+            },
+            trim: {
+                type: 'boolean',
+                description: 'Automatically trim background edges.'
+            },
+            format: {
+                type: 'string',
+                enum: ['png', 'jpeg', 'jpg', 'webp', 'avif', 'tiff', 'gif'],
+                description: 'Target format conversion.'
+            },
+            quality: {
+                type: 'number',
+                description: 'Output quality (1-100).'
+            }
+        },
+        required: ['inputPath']
+    }
+};
+
 export const customTools = [
     fileReaderTool,
     fileWriterTool,
@@ -974,5 +1368,15 @@ export const customTools = [
     scheduleReminderTool,
     scheduleAgentTaskTool,
     listScheduledTasksTool,
-    cancelScheduledTaskTool
+    cancelScheduledTaskTool,
+    generateImageTool,
+    getImageInfoTool,
+    removeImageBackgroundTool,
+    cropImageTool,
+    resizeImageTool,
+    rotateImageTool,
+    adjustImageTool,
+    convertImageTool,
+    compositeImagesTool,
+    manipulateImageTool
 ];

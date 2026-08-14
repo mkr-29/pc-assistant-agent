@@ -14,10 +14,12 @@
   "type": "module",
   "dependencies": {
     "@google/genai": "^2.10.0",
+    "@imgly/background-removal-node": "^1.4.5",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "node-telegram-bot-api": "^1.1.2",
     "playwright": "^1.61.1",
+    "sharp": "^0.35.3",
     "ws": "^8.21.1"
   },
   "devDependencies": {

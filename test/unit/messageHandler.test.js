@@ -531,3 +531,50 @@ test('message handler clears allowAll when agent execution finishes', async () =
 
     assert.equal(clearedAllowAllChatId, 123);
 });
+
+test('image messages are downloaded and passed to the agent with caption', async () => {
+    let downloadedFileId = null;
+    let runAgentArgs = null;
+    let appendedTurn = null;
+
+    const handler = createTelegramMessageHandler({
+        bot: {
+            sendMessage: async () => {},
+            downloadFile: async (fileId, uploadDir) => {
+                downloadedFileId = fileId;
+                return `${uploadDir}/photo_123.jpg`;
+            }
+        },
+        config: { allowedChatId: 123 },
+        conversationHistoryStore: {
+            getHistory: () => [],
+            appendTurn: (chatId, userPrompt, assistantResponse) => {
+                appendedTurn = { chatId, userPrompt, assistantResponse };
+            }
+        },
+        knowledgeMemoryStore: {
+            listMemories: () => []
+        },
+        runAgent: async args => {
+            runAgentArgs = args;
+            return 'Image cropped and background removed successfully.';
+        }
+    });
+
+    const photoMessage = {
+        photo: [
+            { file_id: 'small_id', width: 100, height: 100 },
+            { file_id: 'large_id', width: 800, height: 800 }
+        ],
+        caption: 'Please remove the background and crop to 400x400'
+    };
+
+    await handler(123, '', 'mkr', photoMessage);
+
+    assert.equal(downloadedFileId, 'large_id');
+    assert.ok(runAgentArgs.userPrompt.includes('photo_123.jpg'));
+    assert.ok(runAgentArgs.userPrompt.includes('Please remove the background and crop to 400x400'));
+    assert.equal(appendedTurn.chatId, 123);
+    assert.ok(appendedTurn.userPrompt.includes('photo_123.jpg'));
+});
+
