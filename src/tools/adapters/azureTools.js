@@ -31,19 +31,42 @@ const categoryKeywords = {
         'code', 'test', 'lint', 'git', 'commit', 'diff', 'repo', 'search', 'project', 'bug', 'fix', 'script'
     ],
     scheduling: [
-        'remind', 'reminder', 'schedule', 'timer', 'alarm', 'recurring', 'task', 'later', 'tomorrow', 'cron'
+        'remind', 'reminder', 'schedule', 'timer', 'alarm', 'recurring', 'task', 'later', 'tomorrow', 'cron',
+        'calendar', 'event', 'meeting', 'appointment'
     ],
     search: [
         'search', 'brave', 'google', 'lookup', 'find', 'fetch', 'url', 'web', 'website', 'page', 'doc',
         'docs', 'documentation', 'latest', 'news', 'query', 'article', 'online', 'http', 'https',
-        'pdf', 'pandoc', 'convert', 'sitemap', 'crawl', 'ocr', 'chart', 'plot', 'graph', 'youtube', 'transcript'
+        'pdf', 'pandoc', 'convert', 'sitemap', 'crawl', 'ocr', 'chart', 'plot', 'graph', 'youtube', 'transcript',
+        'note', 'notes'
+    ],
+    finance: [
+        'stock', 'stocks', 'share', 'shares', 'price', 'quote', 'market', 'nasdaq', 'nyse',
+        'crypto', 'bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'coin', 'token',
+        'currency', 'exchange', 'forex', 'convert', 'usd', 'eur', 'inr', 'gbp', 'jpy'
     ],
     system: [
-        'screen', 'screenshot', 'clipboard', 'copy', 'paste', 'terminal', 'history', 'maccy'
+        'screen', 'screenshot', 'clipboard', 'copy', 'paste', 'terminal', 'history', 'maccy',
+        'shortcut', 'shortcuts', 'voice', 'speak', 'say', 'tts', 'transcribe', 'audio'
     ]
 };
 
 const toolCategories = {
+    getCalendarEvents: 'scheduling',
+    createCalendarEvent: 'scheduling',
+    createAppleReminder: 'scheduling',
+    searchAppleNotes: 'search',
+    readAppleNote: 'search',
+    createAppleNote: 'search',
+    appendAppleNote: 'search',
+    listAppleShortcuts: 'system',
+    runAppleShortcut: 'system',
+    sendVoiceNoteResponse: 'system',
+    speakText: 'system',
+    transcribeAudioFile: 'media',
+    getStockPrice: 'finance',
+    getCryptoPrice: 'finance',
+    convertCurrency: 'finance',
     braveWebSearch: 'search',
     braveLocalSearch: 'search',
     fetchUrl: 'search',

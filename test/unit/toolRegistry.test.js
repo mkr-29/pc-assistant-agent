@@ -87,7 +87,22 @@ test('custom tool declarations expose the expected tool names', () => {
             'parseSitemap',
             'crawlWebDocumentation',
             'getMacClipboardHistory',
-            'searchClipboardHistory'
+            'searchClipboardHistory',
+            'getCalendarEvents',
+            'createCalendarEvent',
+            'createAppleReminder',
+            'searchAppleNotes',
+            'readAppleNote',
+            'createAppleNote',
+            'appendAppleNote',
+            'listAppleShortcuts',
+            'runAppleShortcut',
+            'sendVoiceNoteResponse',
+            'speakText',
+            'transcribeAudioFile',
+            'getStockPrice',
+            'getCryptoPrice',
+            'convertCurrency'
         ]
     );
 });

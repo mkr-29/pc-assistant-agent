@@ -1895,6 +1895,327 @@ export const searchClipboardHistoryTool = {
     }
 };
 
+export const getCalendarEventsTool = {
+    name: 'getCalendarEvents',
+    description: 'Queries events from Apple Calendar within a date range.',
+    parameters: {
+        type: 'object',
+        properties: {
+            startDate: {
+                type: 'string',
+                description: 'Optional start date/time ISO string (defaults to start of today).'
+            },
+            endDate: {
+                type: 'string',
+                description: 'Optional end date/time ISO string (defaults to end of today).'
+            },
+            calendarName: {
+                type: 'string',
+                description: 'Optional calendar name filter (e.g. "Work", "Home").'
+            }
+        }
+    }
+};
+
+export const createCalendarEventTool = {
+    name: 'createCalendarEvent',
+    description: 'Creates a new event in macOS Apple Calendar.',
+    parameters: {
+        type: 'object',
+        properties: {
+            title: {
+                type: 'string',
+                description: 'Title of the event.'
+            },
+            startDate: {
+                type: 'string',
+                description: 'Start date and time (ISO format or parseable date string).'
+            },
+            endDate: {
+                type: 'string',
+                description: 'Optional end date and time (defaults to 1 hour after start).'
+            },
+            location: {
+                type: 'string',
+                description: 'Optional location address or room.'
+            },
+            notes: {
+                type: 'string',
+                description: 'Optional description or meeting notes.'
+            },
+            calendarName: {
+                type: 'string',
+                description: 'Optional target calendar name.'
+            }
+        },
+        required: ['title', 'startDate']
+    }
+};
+
+export const createAppleReminderTool = {
+    name: 'createAppleReminder',
+    description: 'Creates a new task in macOS Apple Reminders with optional due date, priority, and list.',
+    parameters: {
+        type: 'object',
+        properties: {
+            title: {
+                type: 'string',
+                description: 'Reminder title.'
+            },
+            dueDate: {
+                type: 'string',
+                description: 'Optional due date/time (ISO format or date string).'
+            },
+            listName: {
+                type: 'string',
+                description: 'Optional target list name in Reminders.'
+            },
+            notes: {
+                type: 'string',
+                description: 'Optional reminder description.'
+            },
+            priority: {
+                type: 'number',
+                description: 'Priority level (0 = None, 1 = High, 5 = Medium, 9 = Low).'
+            }
+        },
+        required: ['title']
+    }
+};
+
+export const searchAppleNotesTool = {
+    name: 'searchAppleNotes',
+    description: 'Searches for notes in the macOS Apple Notes app by title or body content.',
+    parameters: {
+        type: 'object',
+        properties: {
+            query: {
+                type: 'string',
+                description: 'Text query to search for.'
+            },
+            limit: {
+                type: 'number',
+                description: 'Maximum number of notes to return (default 10).'
+            }
+        },
+        required: ['query']
+    }
+};
+
+export const readAppleNoteTool = {
+    name: 'readAppleNote',
+    description: 'Reads the full content of an Apple Note by title or ID.',
+    parameters: {
+        type: 'object',
+        properties: {
+            name: {
+                type: 'string',
+                description: 'Title of the note to read.'
+            },
+            id: {
+                type: 'string',
+                description: 'Unique Apple Notes note ID.'
+            }
+        }
+    }
+};
+
+export const createAppleNoteTool = {
+    name: 'createAppleNote',
+    description: 'Creates a new note in Apple Notes with title and body content.',
+    parameters: {
+        type: 'object',
+        properties: {
+            title: {
+                type: 'string',
+                description: 'Note title.'
+            },
+            body: {
+                type: 'string',
+                description: 'Note body content.'
+            },
+            folderName: {
+                type: 'string',
+                description: 'Optional folder name (e.g. "Notes", "Work").'
+            }
+        },
+        required: ['title']
+    }
+};
+
+export const appendAppleNoteTool = {
+    name: 'appendAppleNote',
+    description: 'Appends text or paragraphs to an existing note in Apple Notes.',
+    parameters: {
+        type: 'object',
+        properties: {
+            name: {
+                type: 'string',
+                description: 'Title of the note to update.'
+            },
+            id: {
+                type: 'string',
+                description: 'Unique note ID.'
+            },
+            textToAppend: {
+                type: 'string',
+                description: 'Text content to append.'
+            }
+        },
+        required: ['textToAppend']
+    }
+};
+
+export const listAppleShortcutsTool = {
+    name: 'listAppleShortcuts',
+    description: 'Lists all user-configured shortcuts in the macOS Shortcuts app.',
+    parameters: {
+        type: 'object',
+        properties: {}
+    }
+};
+
+export const runAppleShortcutTool = {
+    name: 'runAppleShortcut',
+    description: 'Runs a native macOS Shortcut by name with optional input.',
+    parameters: {
+        type: 'object',
+        properties: {
+            name: {
+                type: 'string',
+                description: 'Name of the Shortcut to run (e.g. "Morning Routine", "Focus Mode").'
+            },
+            input: {
+                type: 'string',
+                description: 'Optional input text passed to the shortcut.'
+            }
+        },
+        required: ['name']
+    }
+};
+
+export const sendVoiceNoteResponseTool = {
+    name: 'sendVoiceNoteResponse',
+    description: 'Generates a spoken audio voice note from text and delivers it directly to the user in Telegram.',
+    parameters: {
+        type: 'object',
+        properties: {
+            text: {
+                type: 'string',
+                description: 'Text message to speak and deliver as a voice note.'
+            },
+            voice: {
+                type: 'string',
+                description: 'Optional macOS voice name (e.g. "Samantha", "Daniel", "Karen").'
+            },
+            rate: {
+                type: 'number',
+                description: 'Speaking rate in words per minute (default 180).'
+            }
+        },
+        required: ['text']
+    }
+};
+
+export const speakTextTool = {
+    name: 'speakText',
+    description: 'Speaks text aloud on the Mac laptop speakers.',
+    parameters: {
+        type: 'object',
+        properties: {
+            text: {
+                type: 'string',
+                description: 'Text to speak aloud.'
+            },
+            voice: {
+                type: 'string',
+                description: 'Optional macOS voice name (e.g. "Samantha", "Daniel").'
+            },
+            rate: {
+                type: 'number',
+                description: 'Speaking rate (default 180).'
+            }
+        },
+        required: ['text']
+    }
+};
+
+export const transcribeAudioFileTool = {
+    name: 'transcribeAudioFile',
+    description: 'Transcribes any local audio recording file (MP3, M4A, WAV, OGG, AAC, FLAC) into accurate text transcripts.',
+    parameters: {
+        type: 'object',
+        properties: {
+            audioPath: {
+                type: 'string',
+                description: 'Path of the local audio file to transcribe.'
+            },
+            model: {
+                type: 'string',
+                description: 'Optional transcription model override (default gemini-2.5-flash).'
+            }
+        },
+        required: ['audioPath']
+    }
+};
+
+export const getStockPriceTool = {
+    name: 'getStockPrice',
+    description: 'Fetches real-time stock quotes, day price changes, percent changes, volume, and 52-week ranges.',
+    parameters: {
+        type: 'object',
+        properties: {
+            symbol: {
+                type: 'string',
+                description: 'Stock ticker symbol (e.g. "NVDA", "AAPL", "TSLA", "MSFT", "GOOGL").'
+            }
+        },
+        required: ['symbol']
+    }
+};
+
+export const getCryptoPriceTool = {
+    name: 'getCryptoPrice',
+    description: 'Fetches real-time cryptocurrency prices, 24h price changes, and market caps.',
+    parameters: {
+        type: 'object',
+        properties: {
+            symbol: {
+                type: 'string',
+                description: 'Cryptocurrency symbol or name (e.g. "BTC", "ETH", "SOL", "bitcoin", "dogecoin").'
+            },
+            vsCurrency: {
+                type: 'string',
+                description: 'Target fiat currency comparison (default "usd", or "eur", "inr", "gbp").'
+            }
+        },
+        required: ['symbol']
+    }
+};
+
+export const convertCurrencyTool = {
+    name: 'convertCurrency',
+    description: 'Converts between world fiat currencies using live foreign exchange rates.',
+    parameters: {
+        type: 'object',
+        properties: {
+            amount: {
+                type: 'number',
+                description: 'Amount of currency to convert (default 1).'
+            },
+            from: {
+                type: 'string',
+                description: 'Source 3-letter currency code (e.g. "USD", "EUR", "GBP", "INR").'
+            },
+            to: {
+                type: 'string',
+                description: 'Target 3-letter currency code (e.g. "EUR", "INR", "USD", "JPY").'
+            }
+        },
+        required: ['from', 'to']
+    }
+};
+
 export const customTools = [
     fileReaderTool,
     fileWriterTool,
@@ -1969,7 +2290,23 @@ export const customTools = [
     parseSitemapTool,
     crawlWebDocumentationTool,
     getMacClipboardHistoryTool,
-    searchClipboardHistoryTool
+    searchClipboardHistoryTool,
+    getCalendarEventsTool,
+    createCalendarEventTool,
+    createAppleReminderTool,
+    searchAppleNotesTool,
+    readAppleNoteTool,
+    createAppleNoteTool,
+    appendAppleNoteTool,
+    listAppleShortcutsTool,
+    runAppleShortcutTool,
+    sendVoiceNoteResponseTool,
+    speakTextTool,
+    transcribeAudioFileTool,
+    getStockPriceTool,
+    getCryptoPriceTool,
+    convertCurrencyTool
 ];
+
 
 

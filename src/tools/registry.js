@@ -19,6 +19,9 @@ import { createOcrTools } from './implementations/ocrTools.js';
 import { createChartTools } from './implementations/chartTools.js';
 import { createYoutubeTranscriptTools } from './implementations/youtubeTranscriptTools.js';
 import { createCrawlerTools } from './implementations/crawlerTools.js';
+import { createAppleTools } from './implementations/appleTools.js';
+import { createVoiceResponseTools } from './implementations/voiceResponseTools.js';
+import { createFinanceTools } from './implementations/financeTools.js';
 
 export function createToolRegistry({
     bot,
@@ -39,6 +42,9 @@ export function createToolRegistry({
         ...createChartTools({ resolveToolPath }),
         ...createYoutubeTranscriptTools(),
         ...createCrawlerTools({ resolveToolPath }),
+        ...createAppleTools(),
+        ...createVoiceResponseTools({ bot, chatId, resolveToolPath, ai, config }),
+        ...createFinanceTools(),
         ...createClipboardTools(),
         ...createDownloadTools({ resolveToolPath }),
         ...createFilesystemTools({ resolveToolPath }),

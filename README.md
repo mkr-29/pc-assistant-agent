@@ -143,6 +143,12 @@ The assistant includes specialized Model Context Protocol (MCP) and web intellig
 - **YouTube Transcript & Chapters** (`getYoutubeTranscript`): Fetches complete transcripts, timestamps, and chapters from YouTube video URLs.
 - **Sitemap & Web Documentation Crawler** (`parseSitemap`, `crawlWebDocumentation`): Parses sitemaps and recursively crawls web documentation into local Markdown files.
 - **Mac Clipboard History** (`getMacClipboardHistory`, `searchClipboardHistory`): Searches and retrieves past clipboard history entries (integrated with Maccy and local history store).
+- **Apple Calendar & Reminders** (`getCalendarEvents`, `createCalendarEvent`, `createAppleReminder`): Queries today's schedule, creates calendar events, and adds tasks to Apple Reminders.
+- **Apple Notes Manager** (`searchAppleNotes`, `readAppleNote`, `createAppleNote`, `appendAppleNote`): Searches, reads, creates, and appends to native Apple Notes.
+- **Apple Shortcuts Runner** (`listAppleShortcuts`, `runAppleShortcut`): Inspects and executes configured macOS Shortcuts workflows.
+- **Telegram Voice-Note Reply & Speech** (`sendVoiceNoteResponse`, `speakText`): Speaks text aloud on Mac speakers or delivers spoken voice note bubbles to Telegram.
+- **Universal Local Audio Transcriber** (`transcribeAudioFile`): Transcribes local audio recordings (.mp3, .m4a, .wav) with Gemini multimodal AI.
+- **Stock, Crypto & FX Currency** (`getStockPrice`, `getCryptoPrice`, `convertCurrency`): Real-time stock quotes, cryptocurrency prices, and foreign exchange currency conversions.
 
 ## Testing
 
