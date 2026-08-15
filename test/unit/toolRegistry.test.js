@@ -126,7 +126,11 @@ test('custom tool declarations expose the expected tool names', () => {
             'minimizeAllWindows',
             'generateQrCode',
             'connectBluetoothDevice',
-            'setDisplayBrightness'
+            'setDisplayBrightness',
+            'rememberUserFact',
+            'getUserProfile',
+            'updateUserProfile',
+            'searchUserMemories'
         ]
     );
 });

@@ -170,7 +170,11 @@ const CORE_TOOL_NAMES = new Set([
     'writeFile',
     'listDirectory',
     'sendTelegramFile',
-    'openLocalTarget'
+    'openLocalTarget',
+    'rememberUserFact',
+    'getUserProfile',
+    'updateUserProfile',
+    'searchUserMemories'
 ]);
 
 export function selectRelevantOpenAITools(userPrompt = '', allTools = openAICompatibleTools, maxTools = 20) {

@@ -2758,6 +2758,66 @@ export const cdpLaunchDebugChromeTool = {
     }
 };
 
+export const rememberUserFactTool = {
+    name: 'rememberUserFact',
+    description: 'Saves a persistent personal fact, preference, habit, or workflow guideline about the user into long-term memory so the agent always remembers it.',
+    parameters: {
+        type: 'object',
+        properties: {
+            fact: {
+                type: 'string',
+                description: 'The personal fact, habit, or preference to remember about the user.'
+            },
+            category: {
+                type: 'string',
+                description: 'Optional category for the fact: "identity", "work", "preference", "location", "contact", "guideline", or "general".'
+            }
+        },
+        required: ['fact']
+    }
+};
+
+export const getUserProfileTool = {
+    name: 'getUserProfile',
+    description: 'Retrieves the complete structured user profile including identity, preferences, preferred browser, tech stack, and learned personal facts.',
+    parameters: {
+        type: 'object',
+        properties: {}
+    }
+};
+
+export const updateUserProfileTool = {
+    name: 'updateUserProfile',
+    description: 'Updates structured profile attributes (name, role, location, email, preferredBrowser, defaultWorkspace, techStack, preferences) about the user.',
+    parameters: {
+        type: 'object',
+        properties: {
+            name: { type: 'string', description: 'User full name or nickname.' },
+            role: { type: 'string', description: 'User job title or role.' },
+            location: { type: 'string', description: 'User city/location.' },
+            email: { type: 'string', description: 'User email address.' },
+            preferredBrowser: { type: 'string', description: 'User preferred desktop browser.' },
+            defaultWorkspace: { type: 'string', description: 'Primary project folder path.' },
+            techStack: { type: 'array', items: { type: 'string' }, description: 'Technologies/languages used by the user.' }
+        }
+    }
+};
+
+export const searchUserMemoriesTool = {
+    name: 'searchUserMemories',
+    description: 'Searches across learned user facts, long-term knowledge memories, and past conversation history for specific topics or previous discussions.',
+    parameters: {
+        type: 'object',
+        properties: {
+            query: {
+                type: 'string',
+                description: 'Search keyword or topic to look up in past conversations and user memories.'
+            }
+        },
+        required: ['query']
+    }
+};
+
 export const customTools = [
     fileReaderTool,
     fileWriterTool,
@@ -2871,7 +2931,11 @@ export const customTools = [
     minimizeAllWindowsTool,
     generateQrCodeTool,
     connectBluetoothDeviceTool,
-    setDisplayBrightnessTool
+    setDisplayBrightnessTool,
+    rememberUserFactTool,
+    getUserProfileTool,
+    updateUserProfileTool,
+    searchUserMemoriesTool
 ];
 
 

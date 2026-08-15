@@ -16,6 +16,36 @@ function getLocalTimeZone() {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'local system timezone';
 }
 
+export function extractKeywords(text) {
+    if (!text || typeof text !== 'string') return [];
+    const stopWords = new Set([
+        'the', 'is', 'at', 'which', 'on', 'and', 'a', 'an', 'in', 'to', 'for', 'of', 'with', 'from',
+        'what', 'how', 'when', 'where', 'who', 'why', 'can', 'you', 'please', 'tell', 'me', 'about',
+        'this', 'that', 'these', 'those', 'are', 'was', 'were', 'been', 'will', 'would', 'should'
+    ]);
+
+    return text
+        .toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(word => word.length >= 3 && !stopWords.has(word));
+}
+
+export function scoreTurnRelevance(turn, queryKeywords) {
+    if (!turn || !queryKeywords || queryKeywords.length === 0) return 0;
+    const content = `${turn.userPrompt || ''} ${turn.assistantResponse || ''}`.toLowerCase();
+    let score = 0;
+
+    for (const word of queryKeywords) {
+        if (word.length < 3) continue;
+        if (content.includes(word)) {
+            score += word.length > 5 ? 3 : 2;
+        }
+    }
+
+    return score;
+}
+
 export function buildLocalLaptopContext(config, { currentDate = new Date() } = {}) {
     const configuredTargetPath = config?.targetProjectPath || '~';
     const resolvedTargetPath = resolveBasePath(configuredTargetPath);
@@ -33,33 +63,55 @@ export function buildLocalLaptopContext(config, { currentDate = new Date() } = {
 
 export function formatConversationHistory(
     conversationHistory = [],
-    { maxCharacters = DEFAULT_HISTORY_CHARACTER_BUDGET } = {}
+    { maxCharacters = DEFAULT_HISTORY_CHARACTER_BUDGET, userPrompt = '' } = {}
 ) {
     if (!Array.isArray(conversationHistory) || conversationHistory.length === 0) {
         return 'No previous conversation in this Telegram chat.';
     }
 
-    const selectedTurns = [];
-    let usedCharacters = 0;
+    const keywords = extractKeywords(userPrompt);
+    const totalTurns = conversationHistory.length;
 
-    for (let index = conversationHistory.length - 1; index >= 0; index -= 1) {
-        const turn = conversationHistory[index];
-        const turnText = [
-            `Turn ${index + 1}${turn.timestamp ? ` (${turn.timestamp})` : ''}`,
-            `User: ${turn.userPrompt || ''}`,
-            `Assistant: ${turn.assistantResponse || ''}`
-        ].join('\n');
+    const turnsToInclude = new Map();
+    let usedChars = 0;
 
-        const nextLength = usedCharacters + turnText.length + 2;
-        if (selectedTurns.length > 0 && nextLength > maxCharacters) {
+    const maxRecent = Math.min(4, totalTurns);
+    for (let i = totalTurns - 1; i >= totalTurns - maxRecent; i--) {
+        const turn = conversationHistory[i];
+        const turnText = `[Turn ${i + 1}${turn.timestamp ? ` (${turn.timestamp})` : ''}]\nUser: ${turn.userPrompt || ''}\nAssistant: ${turn.assistantResponse || ''}`;
+        const nextLen = usedChars + turnText.length + 4;
+        if (turnsToInclude.size > 0 && nextLen > maxCharacters) {
             break;
         }
-
-        selectedTurns.unshift(nextLength > maxCharacters ? truncateText(turnText, maxCharacters) : turnText);
-        usedCharacters += selectedTurns[0].length + 2;
+        turnsToInclude.set(i, nextLen > maxCharacters ? truncateText(turnText, maxCharacters) : turnText);
+        usedChars += turnsToInclude.get(i).length + 4;
     }
 
-    return selectedTurns.join('\n\n');
+    if (keywords.length > 0) {
+        const relevantOlderTurns = [];
+        for (let i = 0; i < totalTurns - maxRecent; i++) {
+            const turn = conversationHistory[i];
+            const score = scoreTurnRelevance(turn, keywords);
+            if (score > 0) {
+                relevantOlderTurns.push({ index: i, turn, score });
+            }
+        }
+        relevantOlderTurns.sort((a, b) => b.score - a.score);
+
+        for (const item of relevantOlderTurns) {
+            const turnText = `[Turn ${item.index + 1} (Relevant Past Context)${item.turn.timestamp ? ` (${item.turn.timestamp})` : ''}]\nUser: ${item.turn.userPrompt || ''}\nAssistant: ${item.turn.assistantResponse || ''}`;
+            if (usedChars + turnText.length + 4 > maxCharacters) {
+                break;
+            }
+            turnsToInclude.set(item.index, turnText);
+            usedChars += turnText.length + 4;
+        }
+    }
+
+    const sortedIndices = Array.from(turnsToInclude.keys()).sort((a, b) => a - b);
+    const formattedTurns = sortedIndices.map(idx => turnsToInclude.get(idx));
+
+    return formattedTurns.join('\n\n');
 }
 
 export function formatKnowledgeMemory(
@@ -93,14 +145,28 @@ export function createContextualPrompt({
     userPrompt,
     conversationHistory = [],
     knowledgeMemory = [],
+    userProfile,
     config,
     currentDate = new Date(),
     maxHistoryCharacters = DEFAULT_HISTORY_CHARACTER_BUDGET,
     maxMemoryCharacters = DEFAULT_MEMORY_CHARACTER_BUDGET
 }) {
+    let formattedProfile = 'No user profile information recorded yet.';
+    if (userProfile) {
+        if (typeof userProfile.formatForPrompt === 'function') {
+            formattedProfile = userProfile.formatForPrompt();
+        } else if (typeof userProfile === 'string') {
+            formattedProfile = userProfile;
+        }
+    }
+
     return [
-        'Use the following Telegram conversation history, long-term knowledge memory, and local laptop context when it is relevant.',
+        'Use the following User Profile, long-term learned knowledge, Telegram conversation history, and local laptop context to provide highly personalized, persistent assistance.',
+        'Always remember and apply the user\'s preferences, workflows, personal facts, and habits.',
         'If previous conversation conflicts with the current user request, follow the current user request.',
+        '',
+        '## User Profile & Learned Facts (What you know about the user)',
+        formattedProfile,
         '',
         '## Local laptop context',
         ...buildLocalLaptopContext(config, { currentDate }).map(item => `- ${item}`),
@@ -108,8 +174,8 @@ export function createContextualPrompt({
         '## Long-term knowledge memory',
         formatKnowledgeMemory(knowledgeMemory, { maxCharacters: maxMemoryCharacters }),
         '',
-        '## Previous conversation',
-        formatConversationHistory(conversationHistory, { maxCharacters: maxHistoryCharacters }),
+        '## Relevant Conversation History',
+        formatConversationHistory(conversationHistory, { maxCharacters: maxHistoryCharacters, userPrompt }),
         '',
         '## Current user request',
         userPrompt

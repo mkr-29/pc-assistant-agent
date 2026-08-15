@@ -103,12 +103,10 @@ test('normal Telegram messages load history before the agent and append successf
 
     await handler(123, 'What did I ask you to remember?', 'mkr');
 
-    assert.deepEqual(runAgentArgs, {
-        userPrompt: 'What did I ask you to remember?',
-        chatId: 123,
-        conversationHistory: previousHistory,
-        knowledgeMemory
-    });
+    assert.equal(runAgentArgs.userPrompt, 'What did I ask you to remember?');
+    assert.equal(runAgentArgs.chatId, 123);
+    assert.deepEqual(runAgentArgs.conversationHistory, previousHistory);
+    assert.deepEqual(runAgentArgs.knowledgeMemory, knowledgeMemory);
     assert.deepEqual(appendedTurn, {
         chatId: 123,
         userPrompt: 'What did I ask you to remember?',

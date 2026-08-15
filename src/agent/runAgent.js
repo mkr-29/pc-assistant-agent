@@ -50,6 +50,9 @@ export async function runAgent({
     chatId,
     conversationHistory = [],
     knowledgeMemory = [],
+    userProfileStore,
+    conversationHistoryStore,
+    knowledgeMemoryStore,
     bot,
     config,
     ai,
@@ -57,7 +60,7 @@ export async function runAgent({
     approvalManager,
     agentDependencies = defaultAgentDependencies
 }) {
-    const resolveToolPath = inputPath => resolvePath(inputPath, config.targetProjectPath);
+    const resolveToolPath = inputPath => resolvePath(inputPath, config?.targetProjectPath);
     const toolImplementations = createToolRegistry({
         bot,
         chatId,
@@ -65,9 +68,18 @@ export async function runAgent({
         ai,
         config,
         reminderScheduler,
-        approvalManager
+        approvalManager,
+        userProfileStore,
+        knowledgeMemoryStore,
+        conversationHistoryStore
     });
-    const contextualPrompt = createContextualPrompt({ userPrompt, conversationHistory, knowledgeMemory, config });
+    const contextualPrompt = createContextualPrompt({
+        userPrompt,
+        conversationHistory,
+        knowledgeMemory,
+        userProfile: userProfileStore,
+        config
+    });
 
     console.log('[Agent] Starting loop using primary model: gemini-2.5-flash');
 

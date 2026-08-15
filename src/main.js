@@ -1,6 +1,7 @@
 import { createApp } from './app.js';
 import { createConversationHistoryStore } from './agent/conversationHistoryStore.js';
 import { createKnowledgeMemoryStore } from './agent/knowledgeMemoryStore.js';
+import { createUserProfileStore } from './agent/userProfileStore.js';
 import { createTelegramApprovalManager } from './approvals/telegramApprovalManager.js';
 import { runAgent } from './agent/runAgent.js';
 import { loadConfig, validateConfig } from './config/env.js';
@@ -19,6 +20,7 @@ const bot = createBotClient(config);
 const ai = createGeminiClient(config);
 const conversationHistoryStore = createConversationHistoryStore();
 const knowledgeMemoryStore = createKnowledgeMemoryStore();
+const userProfileStore = createUserProfileStore();
 const approvalManager = createTelegramApprovalManager({
     bot,
     timeoutMs: config.saferCommandApprovals.timeoutMs
@@ -40,6 +42,9 @@ async function runScheduledAgentTask({ chatId, prompt, task }) {
         chatId,
         conversationHistory,
         knowledgeMemory,
+        userProfileStore,
+        conversationHistoryStore,
+        knowledgeMemoryStore,
         bot,
         config,
         ai,
@@ -62,6 +67,7 @@ const handleTelegramMessage = createTelegramMessageHandler({
     config,
     conversationHistoryStore,
     knowledgeMemoryStore,
+    userProfileStore,
     approvalManager,
     voiceNoteTranscriber,
     runAgent: ({ userPrompt, chatId, conversationHistory, knowledgeMemory }) => runAgent({
@@ -69,6 +75,9 @@ const handleTelegramMessage = createTelegramMessageHandler({
         chatId,
         conversationHistory,
         knowledgeMemory,
+        userProfileStore,
+        conversationHistoryStore,
+        knowledgeMemoryStore,
         bot,
         config,
         ai,

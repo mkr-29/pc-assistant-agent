@@ -8,10 +8,14 @@ import {
 } from './responseFormatter.js';
 import { isVoiceMessage } from './voiceNotes.js';
 
+import { autoLearnFromTurn } from '../agent/memoryExtractor.js';
+
 const NEW_CONVERSATION_COMMAND = '/new_convo';
 const REMEMBER_COMMAND = '/remember';
 const LIST_MEMORIES_COMMAND = '/memories';
 const FORGET_MEMORY_COMMAND = '/forget_memory';
+const PROFILE_COMMAND = '/profile';
+const WHOAMI_COMMAND = '/whoami';
 const TELEGRAM_MESSAGE_CHARACTER_LIMIT = 3500;
 
 function hasText(text) {
@@ -107,6 +111,7 @@ export function createTelegramMessageHandler({
     config,
     conversationHistoryStore,
     knowledgeMemoryStore,
+    userProfileStore,
     runAgent,
     approvalManager,
     voiceNoteTranscriber,
@@ -137,6 +142,12 @@ export function createTelegramMessageHandler({
                 return;
             }
 
+            if (getCommand(text) === PROFILE_COMMAND || getCommand(text) === WHOAMI_COMMAND) {
+                const formatted = userProfileStore?.formatForPrompt ? userProfileStore.formatForPrompt() : 'No user profile information recorded yet.';
+                await sendTelegramChunkedMessage(bot, chatId, `👤 **What I know about you:**\n\n${formatted}`, { isMarkdown: true });
+                return;
+            }
+
             if (getCommand(text) === REMEMBER_COMMAND) {
                 const fact = getCommandPayload(text);
                 if (!fact) {
@@ -144,8 +155,9 @@ export function createTelegramMessageHandler({
                     return;
                 }
 
-                const memory = knowledgeMemoryStore.addMemory(fact);
-                await bot.sendMessage(chatId, `Saved long-term memory ${memory.id}.`);
+                const memory = knowledgeMemoryStore?.addMemory(fact);
+                userProfileStore?.addFact?.(fact, 'general');
+                await bot.sendMessage(chatId, `Saved long-term memory ${memory?.id || ''}.`);
                 return;
             }
 
@@ -161,11 +173,12 @@ export function createTelegramMessageHandler({
                     return;
                 }
 
-                const forgottenMemory = knowledgeMemoryStore.forgetMemory(memoryId);
-                const message = forgottenMemory
+                const forgottenMemory = knowledgeMemoryStore?.forgetMemory(memoryId);
+                userProfileStore?.removeFact?.(memoryId);
+                const messageText = forgottenMemory
                     ? `Forgot long-term memory ${forgottenMemory.id}.`
                     : `No long-term memory found for ${memoryId}.`;
-                await bot.sendMessage(chatId, message);
+                await bot.sendMessage(chatId, messageText);
                 return;
             }
 
@@ -212,6 +225,9 @@ export function createTelegramMessageHandler({
                 return;
             }
 
+            // Automatically learn user preferences and facts from the prompt
+            autoLearnFromTurn({ userPrompt: historyPrompt, userProfileStore, knowledgeMemoryStore });
+
             console.log('[Telegram] Sending confirmation back to user...');
             await bot.sendMessage(chatId, 'Engineering Agent activated. Processing your instructions...');
 
@@ -219,7 +235,15 @@ export function createTelegramMessageHandler({
                 console.log('[Agent] Starting runAgent with prompt...');
                 const conversationHistory = conversationHistoryStore.getHistory(chatId);
                 const knowledgeMemory = knowledgeMemoryStore?.listMemories?.() || [];
-                const finalOutcome = await runAgent({ userPrompt, chatId, conversationHistory, knowledgeMemory });
+                const finalOutcome = await runAgent({
+                    userPrompt,
+                    chatId,
+                    conversationHistory,
+                    knowledgeMemory,
+                    userProfileStore,
+                    conversationHistoryStore,
+                    knowledgeMemoryStore
+                });
                 conversationHistoryStore.appendTurn(chatId, historyPrompt, finalOutcome);
 
                 console.log('\n--- [Telegram Output Log] ---');

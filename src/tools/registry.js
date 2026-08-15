@@ -28,6 +28,7 @@ import { createHardwareTools } from './implementations/hardwareTools.js';
 
 import { createAiWebAgentTools } from './implementations/aiWebAgentTools.js';
 import { createCdpTools } from './implementations/cdpTools.js';
+import { createMemoryTools } from './implementations/memoryTools.js';
 
 export function createToolRegistry({
     bot,
@@ -36,7 +37,10 @@ export function createToolRegistry({
     ai,
     config = {},
     reminderScheduler,
-    approvalManager
+    approvalManager,
+    userProfileStore,
+    knowledgeMemoryStore,
+    conversationHistoryStore
 } = {}) {
     const browserTools = createBrowserTools({ config });
     const registry = {
@@ -44,6 +48,7 @@ export function createToolRegistry({
         ...browserTools,
         ...createAiWebAgentTools({ browserTools, ai, config, resolveToolPath }),
         ...createCdpTools({ screenshotDirectory: config?.browser?.screenshotDirectory }),
+        ...createMemoryTools({ userProfileStore, knowledgeMemoryStore, conversationHistoryStore, chatId }),
         ...createExtensionTools(),
         ...createMcpTools({ config }),
         ...createDocumentTools({ resolveToolPath }),
