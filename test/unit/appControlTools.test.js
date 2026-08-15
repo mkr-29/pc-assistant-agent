@@ -71,6 +71,22 @@ test('openLocalTarget opens a local path with the default app', async () => {
     assert.deepEqual(fakeExecFile.calls[0].args, [path.join(ROOT_PATH, 'README.md')]);
 });
 
+test('openLocalTarget opens web URLs directly without local path checks', async () => {
+    const fakeExecFile = createSuccessfulExecFile();
+    const tools = createAppControlTools({
+        platform: 'darwin',
+        resolveToolPath,
+        execFileImpl: fakeExecFile.execFileImpl,
+        pathExists: () => false
+    });
+
+    const result = await tools.openLocalTarget({ targetPath: 'https://claude.ai' });
+
+    assert.equal(result.status, 'Success');
+    assert.equal(result.targetPath, 'https://claude.ai');
+    assert.deepEqual(fakeExecFile.calls[0].args, ['https://claude.ai']);
+});
+
 test('openLocalTarget opens a folder with VS Code alias', async () => {
     const fakeExecFile = createSuccessfulExecFile();
     const tools = createAppControlTools({

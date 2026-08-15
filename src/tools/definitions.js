@@ -722,7 +722,16 @@ export const cancelScheduledTaskTool = {
 
 export const extensionListTabsTool = {
     name: 'extensionListTabs',
-    description: 'Lists all open tabs in the user\'s real desktop browser via the PC Assistant Chrome Extension.',
+    description: 'Lists all open tabs in the user\'s real desktop browser (Chrome/Brave/Edge) via the PC Assistant Chrome Extension.',
+    parameters: {
+        type: 'object',
+        properties: {}
+    }
+};
+
+export const extensionGetActiveTabTool = {
+    name: 'extensionGetActiveTab',
+    description: 'Gets details (URL, title, media playback, audio state) of the currently active/focused tab in the user\'s real browser via Chrome Extension.',
     parameters: {
         type: 'object',
         properties: {}
@@ -747,9 +756,76 @@ export const extensionActivateTabTool = {
     }
 };
 
+export const extensionOpenUrlTool = {
+    name: 'extensionOpenUrl',
+    description: 'Navigates the active tab or opens a new tab with the given URL in the user\'s real browser via Chrome Extension.',
+    parameters: {
+        type: 'object',
+        properties: {
+            url: {
+                type: 'string',
+                description: 'The web URL to open or navigate to.'
+            },
+            tabQuery: {
+                type: 'string',
+                description: 'Optional search string to navigate a specific open tab instead of active tab.'
+            },
+            tabId: {
+                type: 'number',
+                description: 'Optional numeric Chrome tab ID.'
+            },
+            createNewTab: {
+                type: 'boolean',
+                description: 'Whether to open in a new tab. Defaults to false.'
+            },
+            active: {
+                type: 'boolean',
+                description: 'Whether the opened tab should become active/focused. Defaults to true.'
+            }
+        },
+        required: ['url']
+    }
+};
+
+export const extensionCloseTabTool = {
+    name: 'extensionCloseTab',
+    description: 'Closes a browser tab by title, URL query, or tab ID via Chrome Extension.',
+    parameters: {
+        type: 'object',
+        properties: {
+            tabQuery: {
+                type: 'string',
+                description: 'Optional search query to match tab title or URL to close.'
+            },
+            tabId: {
+                type: 'number',
+                description: 'Optional numeric Chrome tab ID.'
+            }
+        }
+    }
+};
+
+export const extensionReloadTabTool = {
+    name: 'extensionReloadTab',
+    description: 'Reloads/refreshes a browser tab via Chrome Extension.',
+    parameters: {
+        type: 'object',
+        properties: {
+            tabQuery: {
+                type: 'string',
+                description: 'Optional search query to match tab title or URL.'
+            },
+            tabId: {
+                type: 'number',
+                description: 'Optional numeric Chrome tab ID.'
+            }
+        }
+    }
+};
+
 export const extensionMediaControlTool = {
     name: 'extensionMediaControl',
-    description: 'Controls media playback (play, pause, next, previous) inside real desktop browser tabs via the Chrome Extension.',
+    description: 'Controls media playback (play, pause, next track, previous track, seek, set volume, toggle captions, toggle like, get media info) inside real desktop browser tabs (YouTube, YouTube Music, Spotify, Netflix, etc.) via Chrome Extension.',
     parameters: {
         type: 'object',
         properties: {
@@ -763,7 +839,15 @@ export const extensionMediaControlTool = {
             },
             action: {
                 type: 'string',
-                description: 'Media action: playpause, play, pause, next, or previous.'
+                description: 'Media action: playpause, play, pause, next, previous, seek, setvolume, togglecaptions, togglelike, or getmediainfo.'
+            },
+            seekSeconds: {
+                type: 'number',
+                description: 'Optional timestamp in seconds when action is "seek".'
+            },
+            volumePercent: {
+                type: 'number',
+                description: 'Optional volume level (0 to 100) when action is "setvolume".'
             }
         }
     }
@@ -887,6 +971,66 @@ export const extensionTypeTool = {
             }
         },
         required: ['value']
+    }
+};
+
+export const extensionScrollTool = {
+    name: 'extensionScroll',
+    description: 'Scrolls a real browser tab (up, down, top, bottom, or to element) via Chrome Extension.',
+    parameters: {
+        type: 'object',
+        properties: {
+            tabQuery: {
+                type: 'string',
+                description: 'Optional tab search query.'
+            },
+            tabId: {
+                type: 'number',
+                description: 'Optional numeric Chrome tab ID.'
+            },
+            direction: {
+                type: 'string',
+                description: 'Direction to scroll: "down", "up", "top", or "bottom". Defaults to "down".'
+            },
+            amount: {
+                type: 'number',
+                description: 'Amount in pixels to scroll when direction is up or down. Defaults to 500.'
+            },
+            selector: {
+                type: 'string',
+                description: 'Optional CSS selector of an element to scroll directly into view.'
+            }
+        }
+    }
+};
+
+export const extensionPressKeyTool = {
+    name: 'extensionPressKey',
+    description: 'Dispatches keyboard key presses (Enter, Escape, Tab, Arrow keys, etc.) to the active or targeted element in a real browser tab via Chrome Extension.',
+    parameters: {
+        type: 'object',
+        properties: {
+            tabQuery: {
+                type: 'string',
+                description: 'Optional tab search query.'
+            },
+            tabId: {
+                type: 'number',
+                description: 'Optional numeric Chrome tab ID.'
+            },
+            key: {
+                type: 'string',
+                description: 'Key name, e.g. "Enter", "Escape", "Tab", "ArrowDown", "Space". Defaults to "Enter".'
+            },
+            code: {
+                type: 'string',
+                description: 'Optional event code string.'
+            },
+            selector: {
+                type: 'string',
+                description: 'Optional CSS selector of the target element.'
+            }
+        }
     }
 };
 
@@ -2607,12 +2751,18 @@ export const customTools = [
     controlDesktopBrowserTool,
     controlMediaPlaybackTool,
     extensionListTabsTool,
+    extensionGetActiveTabTool,
     extensionActivateTabTool,
+    extensionOpenUrlTool,
+    extensionCloseTabTool,
+    extensionReloadTabTool,
     extensionMediaControlTool,
     extensionDomSnapshotTool,
     extensionExtractPageSemanticsTool,
     extensionClickTool,
     extensionTypeTool,
+    extensionScrollTool,
+    extensionPressKeyTool,
     extensionExecuteJsTool,
     extensionTakeScreenshotTool,
     inspectProjectTool,

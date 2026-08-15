@@ -141,6 +141,22 @@ function buildChromiumAppleScript({ browserName, query, action, jsScript }) {
     }
 
     let jsAction = '';
+    if (normAction === 'open' || normAction === 'navigate') {
+        const urlToOpen = safeQuery.startsWith('http') ? safeQuery : `https://${safeQuery}`;
+        return [
+            `tell application "${browserName}"`,
+            `    activate`,
+            `    if not (exists window 1) then`,
+            `        make new window`,
+            `        set URL of active tab of window 1 to "${urlToOpen}"`,
+            `    else`,
+            `        tell window 1 to make new tab with properties {URL:"${urlToOpen}"}`,
+            `    end if`,
+            `    return "Success"`,
+            `end tell`
+        ].join('\n');
+    }
+
     if (normAction === 'reload') {
         jsAction = `reload t`;
     } else {
@@ -216,9 +232,11 @@ export function createAppControlTools({
                 };
             }
 
-            const resolvedPath = hasTargetPath ? resolveToolPath(targetPath) : null;
+            const rawTarget = String(targetPath || '').trim();
+            const isUrl = rawTarget.startsWith('http://') || rawTarget.startsWith('https://');
+            const resolvedPath = hasTargetPath ? (isUrl ? rawTarget : resolveToolPath(targetPath)) : null;
 
-            if (resolvedPath && !pathExists(resolvedPath)) {
+            if (resolvedPath && !isUrl && !pathExists(resolvedPath)) {
                 return {
                     status: 'Error',
                     targetPath: resolvedPath,
