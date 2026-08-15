@@ -3,7 +3,8 @@ import path from 'path';
 import {
     formatErrorMessage,
     formatTaskCompleteMarkdown,
-    formatTaskCompletePlain
+    formatTaskCompletePlain,
+    sendTelegramChunkedMessage
 } from './responseFormatter.js';
 import { isVoiceMessage } from './voiceNotes.js';
 
@@ -227,13 +228,7 @@ export function createTelegramMessageHandler({
                 console.log(`Final Outcome Response:\n${finalOutcome}`);
                 console.log('------------------------------\n');
 
-                try {
-                    await bot.sendMessage(chatId, formatTaskCompleteMarkdown(finalOutcome), { parse_mode: 'Markdown' });
-                } catch (markdownErr) {
-                    console.warn('[Telegram] Markdown parsing failed. Falling back to plain text. Error:', markdownErr.message);
-                    await bot.sendMessage(chatId, formatTaskCompletePlain(finalOutcome));
-                }
-
+                await sendTelegramChunkedMessage(bot, chatId, formatTaskCompleteMarkdown(finalOutcome), { isMarkdown: true });
                 console.log('[Telegram] Outcome successfully sent to Telegram.');
             } finally {
                 approvalManager?.clearAllowAll?.(chatId);
@@ -246,7 +241,7 @@ export function createTelegramMessageHandler({
             console.error('----------------------------\n');
 
             try {
-                await bot.sendMessage(chatId, formatErrorMessage(error));
+                await sendTelegramChunkedMessage(bot, chatId, formatErrorMessage(error), { isMarkdown: true });
             } catch (sendErr) {
                 console.error('[Telegram] Failed to send error notification back to Telegram:', sendErr.message);
             }

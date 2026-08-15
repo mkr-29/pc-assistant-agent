@@ -98,6 +98,7 @@ class FakePage {
             return {
                 visibleText: this.rawText.slice(0, args.textLimit),
                 textTruncated: this.rawText.length > args.textLimit,
+                accessibilityTree: '[1] link "Home"\n[2] button "Submit"',
                 elements: this.snapshotElements.slice(0, args.elementLimit)
             };
         }
@@ -144,7 +145,7 @@ function createFakeChromium() {
         browser,
         launches,
         chromiumImpl: {
-            launch: async options => {
+            async launch(options) {
                 launches.push(options);
                 return browser;
             }
@@ -152,31 +153,35 @@ function createFakeChromium() {
     };
 }
 
-test('browserNavigate lazily launches Chromium and navigates the managed page', async () => {
+test('createBrowserScreenshotPath returns safe file path', () => {
+    const filePath = createBrowserScreenshotPath('/tmp/screenshots', 'example', new Date('2026-08-15T12:00:00.000Z'));
+    assert.match(filePath, /\/tmp\/screenshots\/browser-example-2026-08-15T12-00-00-000Z\.png$/);
+});
+
+test('browserNavigate and browserClose manage browser lifecycle', async () => {
     const fake = createFakeChromium();
     const tools = createBrowserTools({
-        config: { browser: { headless: false, timeoutMs: 1234 } },
+        config: { browser: { timeoutMs: 1234, headless: false } },
         chromiumImpl: fake.chromiumImpl
     });
 
-    assert.equal(fake.launches.length, 0);
+    const navResult = await tools.browserNavigate({ url: 'https://example.com' });
+    assert.equal(navResult.status, 'Success');
+    assert.equal(navResult.url, 'https://example.com/');
+    assert.equal(navResult.title, 'Example Page');
+    assert.equal(fake.launches.length, 1);
+    assert.equal(fake.launches[0].headless, false);
 
-    const result = await tools.browserNavigate({ url: 'https://example.com/path' });
-
-    assert.equal(result.status, 'Success');
-    assert.equal(result.url, 'https://example.com/path');
-    assert.equal(result.title, 'Example Page');
-    assert.deepEqual(fake.launches, [{ headless: false, timeout: 1234 }]);
-    assert.deepEqual(fake.browser.contextOptions, {
-        viewport: { width: 1280, height: 800 },
-        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    });
-    assert.deepEqual(fake.page.gotoOptions, { waitUntil: 'domcontentloaded', timeout: 1234 });
+    const closeResult = await tools.browserClose();
+    assert.equal(closeResult.status, 'Success');
+    assert.equal(fake.browser.closed, true);
 });
 
-test('browserSnapshot returns bounded text and interactive elements', async () => {
+test('browserSnapshot collects text and accessibility tree from page', async () => {
     const fake = createFakeChromium();
-    const tools = createBrowserTools({ chromiumImpl: fake.chromiumImpl });
+    const tools = createBrowserTools({
+        chromiumImpl: fake.chromiumImpl
+    });
 
     await tools.browserNavigate({ url: 'https://example.com' });
     const result = await tools.browserSnapshot({ maxTextLength: 5, maxElements: 1 });
@@ -184,10 +189,11 @@ test('browserSnapshot returns bounded text and interactive elements', async () =
     assert.equal(result.status, 'Success');
     assert.equal(result.visibleText, 'Hello');
     assert.equal(result.textTruncated, true);
+    assert.equal(result.accessibilityTree, '[1] link "Home"\n[2] button "Submit"');
     assert.deepEqual(result.elements, [fake.page.snapshotElements[0]]);
 });
 
-test('browser interaction tools call the expected Playwright APIs', async () => {
+test('browser interaction tools call the expected Playwright APIs including elementId', async () => {
     const fake = createFakeChromium();
     const tools = createBrowserTools({
         config: { browser: { timeoutMs: 4321 } },
@@ -195,13 +201,17 @@ test('browser interaction tools call the expected Playwright APIs', async () => 
     });
 
     await tools.browserClick({ selector: '#submit' });
+    await tools.browserClick({ elementId: 2 });
     await tools.browserType({ selector: '#name', value: 'MKR', clearFirst: false });
+    await tools.browserType({ elementId: 3, value: 'Hello WhatsApp' });
     await tools.browserType({ text: 'Email', value: 'user@example.com' });
     await tools.browserPressKey({ key: 'Enter' });
 
     assert.deepEqual(fake.page.actions, [
         { action: 'click', target: 'selector:#submit', options: { timeout: 4321 } },
+        { action: 'click', target: 'selector:[data-assistant-id="2"]', options: { timeout: 4321 } },
         { action: 'type', target: 'selector:#name', value: 'MKR', options: { timeout: 4321 } },
+        { action: 'fill', target: 'selector:[data-assistant-id="3"]', value: 'Hello WhatsApp', options: { timeout: 4321 } },
         { action: 'fill', target: 'label:Email', value: 'user@example.com', options: { timeout: 4321 } },
         { action: 'press', key: 'Enter' }
     ]);

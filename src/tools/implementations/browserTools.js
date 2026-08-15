@@ -32,14 +32,27 @@ function resolveDirectory(directory) {
     return path.isAbsolute(directory) ? directory : path.resolve(process.cwd(), directory);
 }
 
-export function createBrowserScreenshotPath({
-    fileName,
-    screenshotDirectory = DEFAULT_BROWSER_SCREENSHOT_DIRECTORY,
-    now = () => new Date()
-} = {}) {
+export function createBrowserScreenshotPath(directoryOrOptions = {}, fileNameArg, nowArg = () => new Date()) {
+    if (typeof directoryOrOptions === 'string') {
+        const screenshotDirectory = directoryOrOptions;
+        const resolvedNow = typeof nowArg === 'function' ? nowArg() : (nowArg instanceof Date ? nowArg : new Date());
+        const safeBaseName = fileNameArg
+            ? sanitizeFileName(`browser-${fileNameArg}-${formatTimestamp(resolvedNow)}`)
+            : `browser-screenshot-${formatTimestamp(resolvedNow)}`;
+
+        return path.join(resolveDirectory(screenshotDirectory), `${safeBaseName}.png`);
+    }
+
+    const {
+        fileName,
+        screenshotDirectory = DEFAULT_BROWSER_SCREENSHOT_DIRECTORY,
+        now = () => new Date()
+    } = directoryOrOptions;
+
+    const resolvedNow = typeof now === 'function' ? now() : (now instanceof Date ? now : new Date());
     const safeBaseName = fileName
         ? sanitizeFileName(fileName)
-        : `browser-screenshot-${formatTimestamp(now())}`;
+        : `browser-screenshot-${formatTimestamp(resolvedNow)}`;
 
     return path.join(resolveDirectory(screenshotDirectory), `${safeBaseName}.png`);
 }
@@ -78,13 +91,18 @@ function escapeRegex(value) {
     return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-async function resolveLocator(page, { selector, text, forTyping = false }) {
+async function resolveLocator(page, { selector, text, elementId, index, forTyping = false }) {
+    const targetId = elementId || index;
+    if (targetId) {
+        return page.locator(`[data-assistant-id="${targetId}"]`).first();
+    }
+
     if (selector) {
         return page.locator(selector).first();
     }
 
     if (!text) {
-        throw new Error('Provide either selector or text.');
+        throw new Error('Provide either selector, elementId, or text.');
     }
 
     if (forTyping) {
@@ -118,67 +136,103 @@ async function collectSnapshot(page, { maxTextLength, maxElements }) {
         page.title(),
         page.url(),
         page.evaluate(({ textLimit: pageTextLimit, elementLimit: pageElementLimit }) => {
-            function escapeAttribute(value) {
-                return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-            }
-
-            function selectorFor(element) {
-                const tagName = element.tagName.toLowerCase();
-                if (element.id && globalThis.CSS?.escape) {
-                    return `#${globalThis.CSS.escape(element.id)}`;
-                }
-                if (element.getAttribute('data-testid')) {
-                    return `${tagName}[data-testid="${escapeAttribute(element.getAttribute('data-testid'))}"]`;
-                }
-                if (element.getAttribute('name')) {
-                    return `${tagName}[name="${escapeAttribute(element.getAttribute('name'))}"]`;
-                }
-                if (element.getAttribute('aria-label')) {
-                    return `${tagName}[aria-label="${escapeAttribute(element.getAttribute('aria-label'))}"]`;
-                }
-
-                return tagName;
-            }
-
             function isVisible(element) {
-                const style = globalThis.getComputedStyle(element);
-                const rect = element.getBoundingClientRect();
+                const style = globalThis.getComputedStyle ? globalThis.getComputedStyle(element) : null;
+                const rect = element.getBoundingClientRect ? element.getBoundingClientRect() : { width: 0, height: 0 };
 
-                return style.visibility !== 'hidden'
+                return style
+                    && style.visibility !== 'hidden'
                     && style.display !== 'none'
                     && rect.width > 0
                     && rect.height > 0;
             }
 
-            function labelFor(element) {
-                return (
-                    element.innerText
-                    || element.value
-                    || element.getAttribute('aria-label')
-                    || element.getAttribute('placeholder')
-                    || element.getAttribute('title')
-                    || element.getAttribute('name')
-                    || ''
-                ).trim().replace(/\s+/g, ' ').slice(0, 120);
+            function computeAccessibleName(el) {
+                if (!el) return '';
+                if (el.getAttribute('aria-label')) return el.getAttribute('aria-label').trim();
+                if (el.getAttribute('placeholder')) return el.getAttribute('placeholder').trim();
+                if (el.getAttribute('title')) return el.getAttribute('title').trim();
+                if (el.id) {
+                    const labelEl = document.querySelector(`label[for="${el.id}"]`);
+                    if (labelEl && labelEl.innerText) return labelEl.innerText.trim();
+                }
+                const text = (el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 100);
+                return text || el.getAttribute('name') || '';
+            }
+
+            function computeDefaultRole(el) {
+                const tag = el.tagName.toLowerCase();
+                if (tag === 'a') return 'link';
+                if (tag === 'button') return 'button';
+                if (tag === 'textarea') return 'textbox';
+                if (tag === 'select') return 'combobox';
+                if (el.isContentEditable || el.getAttribute('contenteditable') === 'true') return 'textbox';
+                if (tag === 'input') {
+                    const type = (el.type || 'text').toLowerCase();
+                    if (['button', 'submit', 'reset'].includes(type)) return 'button';
+                    if (['checkbox'].includes(type)) return 'checkbox';
+                    if (['radio'].includes(type)) return 'radio';
+                    if (['search'].includes(type)) return 'searchbox';
+                    return 'textbox';
+                }
+                return tag;
             }
 
             const rawText = (document.body?.innerText || '').replace(/\s+/g, ' ').trim();
-            const elementSelectors = 'a,button,input,textarea,select,[role="button"],[role="link"],[contenteditable="true"]';
-            const elements = Array.from(document.querySelectorAll(elementSelectors))
-                .filter(isVisible)
-                .slice(0, pageElementLimit)
-                .map(element => ({
-                    tag: element.tagName.toLowerCase(),
-                    text: labelFor(element),
-                    selector: selectorFor(element),
-                    role: element.getAttribute('role') || null,
+            const elementSelectors = 'a[href],button,input:not([type="hidden"]),textarea,select,[role="button"],[role="link"],[role="textbox"],[role="combobox"],[role="checkbox"],[contenteditable="true"]';
+            const rawElements = Array.from(document.querySelectorAll(elementSelectors)).filter(isVisible);
+
+            let currentId = 1;
+            const elements = [];
+            for (const element of rawElements) {
+                element.setAttribute('data-assistant-id', String(currentId));
+                const tag = element.tagName.toLowerCase();
+                const role = element.getAttribute('role') || computeDefaultRole(element);
+                const name = computeAccessibleName(element);
+                const isEditable = element.isContentEditable || element.getAttribute('contenteditable') === 'true' || tag === 'input' || tag === 'textarea';
+
+                const states = [];
+                if (document.activeElement === element) states.push('focused');
+                if (element.disabled) states.push('disabled');
+                if (element.checked) states.push('checked');
+                if (isEditable) states.push('contenteditable');
+
+                let value = '';
+                if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+                    value = element.value || '';
+                } else if (isEditable) {
+                    value = (element.innerText || element.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+                }
+
+                elements.push({
+                    id: currentId,
+                    tag,
+                    role,
+                    text: name,
+                    value: value || null,
+                    states,
+                    selector: `[data-assistant-id="${currentId}"]`,
                     type: element.getAttribute('type') || null,
                     href: element.href || null
-                }));
+                });
+
+                currentId++;
+                if (elements.length >= pageElementLimit) break;
+            }
+
+            const treeLines = elements.map(el => {
+                let line = `[${el.id}] ${el.role}`;
+                if (el.text) line += ` "${el.text}"`;
+                if (el.value) line += ` value="${el.value}"`;
+                if (el.href) line += ` href="${el.href}"`;
+                if (el.states && el.states.length > 0) line += ` (${el.states.join(', ')})`;
+                return line;
+            });
 
             return {
                 visibleText: rawText.slice(0, pageTextLimit),
                 textTruncated: rawText.length > pageTextLimit,
+                accessibilityTree: treeLines.join('\n'),
                 elements
             };
         }, { textLimit, elementLimit })
@@ -188,9 +242,10 @@ async function collectSnapshot(page, { maxTextLength, maxElements }) {
         status: 'Success',
         url: pageUrl,
         title,
-        visibleText: pageSnapshot.visibleText,
-        textTruncated: pageSnapshot.textTruncated,
-        elements: pageSnapshot.elements
+        accessibilityTree: pageSnapshot?.accessibilityTree || '',
+        visibleText: pageSnapshot?.visibleText || '',
+        textTruncated: Boolean(pageSnapshot?.textTruncated),
+        elements: pageSnapshot?.elements || []
     };
 }
 
@@ -508,9 +563,9 @@ export function createBrowserTools({
             };
         }),
 
-        browserClick: ({ selector, text, takeScreenshot } = {}) => runBrowserAction(async () => {
+        browserClick: ({ selector, text, elementId, index, takeScreenshot } = {}) => runBrowserAction(async () => {
             const activePage = await ensurePage();
-            const locator = await resolveLocator(activePage, { selector, text });
+            const locator = await resolveLocator(activePage, { selector, text, elementId, index });
             await locator.click({ timeout });
             const screenshotPath = await maybeTakeScreenshot(activePage, takeScreenshot, 'click');
 
@@ -523,13 +578,13 @@ export function createBrowserTools({
             };
         }),
 
-        browserType: ({ selector, text, value, clearFirst = true, takeScreenshot } = {}) => runBrowserAction(async () => {
+        browserType: ({ selector, text, elementId, index, value, clearFirst = true, takeScreenshot } = {}) => runBrowserAction(async () => {
             if (value === undefined) {
                 throw new Error('value is required.');
             }
 
             const activePage = await ensurePage();
-            const locator = await resolveLocator(activePage, { selector, text, forTyping: true });
+            const locator = await resolveLocator(activePage, { selector, text, elementId, index, forTyping: true });
             if (clearFirst) {
                 await locator.fill(String(value), { timeout });
             } else {

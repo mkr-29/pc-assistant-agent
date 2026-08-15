@@ -915,7 +915,7 @@ export const extensionExtractPageSemanticsTool = {
 
 export const extensionClickTool = {
     name: 'extensionClick',
-    description: 'Clicks an element natively inside a real browser tab by CSS selector or visible text via Chrome Extension.',
+    description: 'Clicks an element natively inside a real browser tab by index/elementId from accessibility tree, CSS selector, or visible text via Chrome Extension.',
     parameters: {
         type: 'object',
         properties: {
@@ -926,6 +926,10 @@ export const extensionClickTool = {
             tabId: {
                 type: 'number',
                 description: 'Optional numeric Chrome tab ID.'
+            },
+            elementId: {
+                type: 'number',
+                description: 'Numeric index/id of the interactive element from extensionDomSnapshot accessibility tree (e.g. 1, 2, 3).'
             },
             selector: {
                 type: 'string',
@@ -941,7 +945,7 @@ export const extensionClickTool = {
 
 export const extensionTypeTool = {
     name: 'extensionType',
-    description: 'Fills text into an input field inside a real browser tab via Chrome Extension.',
+    description: 'Fills text into an input field or contenteditable element (including WhatsApp Web, Lexical, React, Draft.js) inside a real browser tab via Chrome Extension.',
     parameters: {
         type: 'object',
         properties: {
@@ -952,6 +956,10 @@ export const extensionTypeTool = {
             tabId: {
                 type: 'number',
                 description: 'Optional numeric Chrome tab ID.'
+            },
+            elementId: {
+                type: 'number',
+                description: 'Numeric index/id of the input/contenteditable element from extensionDomSnapshot accessibility tree (e.g. 1, 2, 3).'
             },
             selector: {
                 type: 'string',
@@ -968,6 +976,10 @@ export const extensionTypeTool = {
             clearFirst: {
                 type: 'boolean',
                 description: 'Whether to clear field first. Defaults to true.'
+            },
+            pressEnter: {
+                type: 'boolean',
+                description: 'Whether to dispatch Enter key after typing (useful for chat forms like WhatsApp Web). Defaults to false.'
             }
         },
         required: ['value']
@@ -996,6 +1008,10 @@ export const extensionScrollTool = {
                 type: 'number',
                 description: 'Amount in pixels to scroll when direction is up or down. Defaults to 500.'
             },
+            elementId: {
+                type: 'number',
+                description: 'Numeric index/id of an element to scroll directly into view.'
+            },
             selector: {
                 type: 'string',
                 description: 'Optional CSS selector of an element to scroll directly into view.'
@@ -1020,15 +1036,19 @@ export const extensionPressKeyTool = {
             },
             key: {
                 type: 'string',
-                description: 'Key name, e.g. "Enter", "Escape", "Tab", "ArrowDown", "Space". Defaults to "Enter".'
+                description: 'Name of the key to press (e.g. "Enter", "Escape", "Tab", "ArrowDown", "Backspace"). Defaults to "Enter".'
             },
             code: {
                 type: 'string',
-                description: 'Optional event code string.'
+                description: 'Optional KeyboardEvent code (e.g. "Enter", "Space").'
+            },
+            elementId: {
+                type: 'number',
+                description: 'Numeric index/id of target element from accessibility tree.'
             },
             selector: {
                 type: 'string',
-                description: 'Optional CSS selector of the target element.'
+                description: 'Optional CSS selector of target element.'
             }
         }
     }

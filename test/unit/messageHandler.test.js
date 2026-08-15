@@ -578,3 +578,33 @@ test('image messages are downloaded and passed to the agent with caption', async
     assert.ok(appendedTurn.userPrompt.includes('photo_123.jpg'));
 });
 
+test('long agent responses are safely chunked into pieces below Telegram character limits', async () => {
+    const sentMessages = [];
+    const veryLongResponse = 'Accessibility tree dump:\n' + Array.from({ length: 200 }, (_, i) => `[${i + 1}] button "Action ${i + 1}" href="https://example.com/${i + 1}"`).join('\n');
+
+    const handler = createTelegramMessageHandler({
+        bot: {
+            sendMessage: async (chatId, message, options) => {
+                sentMessages.push({ chatId, message, options });
+            }
+        },
+        config: { allowedChatId: 123 },
+        conversationHistoryStore: {
+            getHistory: () => [],
+            appendTurn: () => {}
+        },
+        knowledgeMemoryStore: {
+            listMemories: () => []
+        },
+        runAgent: async () => veryLongResponse
+    });
+
+    await handler(123, 'Dump tree', 'mkr');
+
+    // First message is the activation message, subsequent messages are chunks
+    assert.ok(sentMessages.length > 2);
+    for (const msg of sentMessages) {
+        assert.ok(msg.message.length <= 4000, `Message length ${msg.message.length} exceeded 4000 limit`);
+    }
+});
+

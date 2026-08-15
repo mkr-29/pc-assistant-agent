@@ -93,17 +93,17 @@ export function createExtensionTools({
         extensionExtractPageSemantics: ({ tabQuery, tabId, maxContentLength, includeTables, includeForms, includeOutline } = {}) =>
             runExtensionAction('EXTRACT_PAGE_SEMANTICS', { tabQuery, tabId, maxContentLength, includeTables, includeForms, includeOutline }),
 
-        extensionClick: ({ tabQuery, tabId, selector, text } = {}) =>
-            runExtensionAction('CLICK_ELEMENT', { tabQuery, tabId, selector, text }),
+        extensionClick: ({ tabQuery, tabId, selector, text, elementId, index } = {}) =>
+            runExtensionAction('CLICK_ELEMENT', { tabQuery, tabId, selector, text, elementId, index }),
 
-        extensionType: ({ tabQuery, tabId, selector, text, value, clearFirst = true } = {}) =>
-            runExtensionAction('TYPE_TEXT', { tabQuery, tabId, selector, text, value, clearFirst }),
+        extensionType: ({ tabQuery, tabId, selector, text, elementId, index, value, clearFirst = true, pressEnter = false } = {}) =>
+            runExtensionAction('TYPE_TEXT', { tabQuery, tabId, selector, text, elementId, index, value, clearFirst, pressEnter }),
 
-        extensionScroll: ({ tabQuery, tabId, direction = 'down', amount = 500, selector } = {}) =>
-            runExtensionAction('SCROLL_PAGE', { tabQuery, tabId, direction, amount, selector }),
+        extensionScroll: ({ tabQuery, tabId, direction = 'down', amount = 500, selector, elementId, index } = {}) =>
+            runExtensionAction('SCROLL_PAGE', { tabQuery, tabId, direction, amount, selector, elementId, index }),
 
-        extensionPressKey: ({ tabQuery, tabId, key = 'Enter', code, selector } = {}) =>
-            runExtensionAction('PRESS_KEY', { tabQuery, tabId, key, code, selector }),
+        extensionPressKey: ({ tabQuery, tabId, key = 'Enter', code, selector, elementId, index } = {}) =>
+            runExtensionAction('PRESS_KEY', { tabQuery, tabId, key, code, selector, elementId, index }),
 
         extensionExecuteJs: ({ tabQuery, tabId, jsCode } = {}) =>
             runExtensionAction('EXECUTE_JS', { tabQuery, tabId, jsCode }),
