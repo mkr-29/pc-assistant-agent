@@ -64,3 +64,25 @@ test('conversation history store falls back to empty history for invalid JSON', 
         fs.rmSync(directoryPath, { recursive: true, force: true });
     }
 });
+
+test('conversation history store preserves high importance turns over ephemeral filler', () => {
+    const { directoryPath, filePath } = createTempHistoryFile();
+
+    try {
+        const store = createConversationHistoryStore({ filePath, maxTurns: 3 });
+
+        store.appendTurn('chat-1', 'My main project directory is /Users/mkr/code', 'Configured workspace.');
+        store.appendTurn('chat-1', 'hi', 'Hello! How can I help you?');
+        store.appendTurn('chat-1', 'thanks', 'You are welcome!');
+        store.appendTurn('chat-1', 'Run tests on backend', 'Tests passed successfully.');
+
+        const history = store.getHistory('chat-1');
+        // The first high-importance turn and the last turn should be kept; ephemeral filler should be pruned
+        const prompts = history.map(t => t.userPrompt);
+        assert.ok(prompts.includes('My main project directory is /Users/mkr/code'));
+        assert.ok(prompts.includes('Run tests on backend'));
+    } finally {
+        fs.rmSync(directoryPath, { recursive: true, force: true });
+    }
+});
+

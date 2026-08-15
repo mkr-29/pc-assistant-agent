@@ -32,14 +32,33 @@ export function extractKeywords(text) {
 }
 
 export function scoreTurnRelevance(turn, queryKeywords) {
-    if (!turn || !queryKeywords || queryKeywords.length === 0) return 0;
-    const content = `${turn.userPrompt || ''} ${turn.assistantResponse || ''}`.toLowerCase();
+    if (!turn) return 0;
     let score = 0;
 
+    // High importance turns receive baseline boost
+    if (turn.importance === 'high') {
+        score += 5;
+    } else if (turn.importance === 'ephemeral') {
+        return 0;
+    }
+
+    if (!queryKeywords || queryKeywords.length === 0) return score;
+
+    const content = `${turn.userPrompt || ''} ${turn.assistantResponse || ''}`.toLowerCase();
     for (const word of queryKeywords) {
         if (word.length < 3) continue;
         if (content.includes(word)) {
             score += word.length > 5 ? 3 : 2;
+        }
+    }
+
+    // Entity matching boost
+    if (Array.isArray(turn.entities)) {
+        for (const entity of turn.entities) {
+            const lowerEntity = entity.toLowerCase();
+            if (queryKeywords.some(k => lowerEntity.includes(k))) {
+                score += 4;
+            }
         }
     }
 
@@ -78,6 +97,11 @@ export function formatConversationHistory(
     const maxRecent = Math.min(4, totalTurns);
     for (let i = totalTurns - 1; i >= totalTurns - maxRecent; i--) {
         const turn = conversationHistory[i];
+        // Skip ephemeral filler unless it is the very latest turn
+        if (turn.importance === 'ephemeral' && i !== totalTurns - 1) {
+            continue;
+        }
+
         const turnText = `[Turn ${i + 1}${turn.timestamp ? ` (${turn.timestamp})` : ''}]\nUser: ${turn.userPrompt || ''}\nAssistant: ${turn.assistantResponse || ''}`;
         const nextLen = usedChars + turnText.length + 4;
         if (turnsToInclude.size > 0 && nextLen > maxCharacters) {
