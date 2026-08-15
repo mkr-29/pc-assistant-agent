@@ -37,7 +37,10 @@ Use searchAppleNotes, readAppleNote, createAppleNote, or appendAppleNote to sear
 Use listAppleShortcuts or runAppleShortcut to inspect and trigger native macOS Shortcuts workflows.
 Use sendVoiceNoteResponse when the user asks you to reply with a voice message/note in Telegram, or speakText to speak text aloud on the Mac speakers.
 Use transcribeAudioFile to transcribe local audio recordings and voice memos into text.
-Use getStockPrice, getCryptoPrice, or convertCurrency when asked for real-time stock quotes, cryptocurrency prices, or foreign exchange conversions.
+Use listOpenWindows, focusWindow, tileWindows, or minimizeAllWindows to inspect and manage macOS desktop windows and screen tiling.
+Use generateQrCode when asked to create QR codes for URLs, Wi-Fi logins, or text, then send the rendered image with sendTelegramFile.
+Use connectBluetoothDevice to connect or disconnect paired Bluetooth headphones, AirPods, or accessories.
+Use setDisplayBrightness to adjust Mac and external monitor screen brightness (0-100%).
 When the user asks for files, images, or documents, locate them and use the sendTelegramFile tool to send them directly to their Telegram.`;
 
 export const ROUTER_SYSTEM_INSTRUCTION = `You are the Router Agent. You must analyze the following user task and decide which model and configuration to use.

@@ -2216,6 +2216,127 @@ export const convertCurrencyTool = {
     }
 };
 
+export const listOpenWindowsTool = {
+    name: 'listOpenWindows',
+    description: 'Lists all open, visible application windows on macOS.',
+    parameters: {
+        type: 'object',
+        properties: {}
+    }
+};
+
+export const focusWindowTool = {
+    name: 'focusWindow',
+    description: 'Brings an application and its active window to the front/foreground.',
+    parameters: {
+        type: 'object',
+        properties: {
+            appName: {
+                type: 'string',
+                description: 'Name of the application to activate (e.g. "Code", "Google Chrome", "Terminal", "Slack").'
+            }
+        },
+        required: ['appName']
+    }
+};
+
+export const tileWindowsTool = {
+    name: 'tileWindows',
+    description: 'Arranges two application windows side-by-side (left 50% / right 50% split screen).',
+    parameters: {
+        type: 'object',
+        properties: {
+            leftApp: {
+                type: 'string',
+                description: 'Name of the app for the left half.'
+            },
+            rightApp: {
+                type: 'string',
+                description: 'Name of the app for the right half.'
+            }
+        },
+        required: ['leftApp', 'rightApp']
+    }
+};
+
+export const minimizeAllWindowsTool = {
+    name: 'minimizeAllWindows',
+    description: 'Minimizes/hides all active application windows to reveal the desktop.',
+    parameters: {
+        type: 'object',
+        properties: {}
+    }
+};
+
+export const generateQrCodeTool = {
+    name: 'generateQrCode',
+    description: 'Generates a high-resolution QR code PNG image from text, URL, or Wi-Fi credentials, ready to send via sendTelegramFile.',
+    parameters: {
+        type: 'object',
+        properties: {
+            text: {
+                type: 'string',
+                description: 'Text or URL to encode in the QR code.'
+            },
+            width: {
+                type: 'number',
+                description: 'Image width in pixels (default 400).'
+            },
+            margin: {
+                type: 'number',
+                description: 'White margin border size (default 2).'
+            },
+            color: {
+                type: 'string',
+                description: 'Dark module color hex (default "#000000").'
+            },
+            backgroundColor: {
+                type: 'string',
+                description: 'Background color hex (default "#ffffff").'
+            },
+            outputPath: {
+                type: 'string',
+                description: 'Optional custom PNG output file path.'
+            }
+        },
+        required: ['text']
+    }
+};
+
+export const connectBluetoothDeviceTool = {
+    name: 'connectBluetoothDevice',
+    description: 'Connects or disconnects paired Bluetooth devices (AirPods, wireless headphones, keyboard, mouse).',
+    parameters: {
+        type: 'object',
+        properties: {
+            name: {
+                type: 'string',
+                description: 'Name of the Bluetooth device (e.g. "AirPods Pro", "MX Master 3S").'
+            },
+            disconnect: {
+                type: 'boolean',
+                description: 'Set to true to disconnect instead of connect (default false).'
+            }
+        },
+        required: ['name']
+    }
+};
+
+export const setDisplayBrightnessTool = {
+    name: 'setDisplayBrightness',
+    description: 'Adjusts MacBook screen and external monitor display brightness level (0 to 100%).',
+    parameters: {
+        type: 'object',
+        properties: {
+            brightness: {
+                type: 'number',
+                description: 'Brightness level from 0 to 100 percent.'
+            }
+        },
+        required: ['brightness']
+    }
+};
+
 export const customTools = [
     fileReaderTool,
     fileWriterTool,
@@ -2305,8 +2426,16 @@ export const customTools = [
     transcribeAudioFileTool,
     getStockPriceTool,
     getCryptoPriceTool,
-    convertCurrencyTool
+    convertCurrencyTool,
+    listOpenWindowsTool,
+    focusWindowTool,
+    tileWindowsTool,
+    minimizeAllWindowsTool,
+    generateQrCodeTool,
+    connectBluetoothDeviceTool,
+    setDisplayBrightnessTool
 ];
+
 
 
 

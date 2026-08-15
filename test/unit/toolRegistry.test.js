@@ -102,7 +102,14 @@ test('custom tool declarations expose the expected tool names', () => {
             'transcribeAudioFile',
             'getStockPrice',
             'getCryptoPrice',
-            'convertCurrency'
+            'convertCurrency',
+            'listOpenWindows',
+            'focusWindow',
+            'tileWindows',
+            'minimizeAllWindows',
+            'generateQrCode',
+            'connectBluetoothDevice',
+            'setDisplayBrightness'
         ]
     );
 });

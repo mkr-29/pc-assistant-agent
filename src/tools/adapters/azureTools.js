@@ -19,7 +19,8 @@ const categoryKeywords = {
     ],
     image: [
         'image', 'photo', 'picture', 'draw', 'generate', 'crop', 'background', 'png', 'jpg', 'jpeg',
-        'webp', 'resize', 'rotate', 'filter', 'contrast', 'brightness', 'nobg', 'watermark', 'composite'
+        'webp', 'resize', 'rotate', 'filter', 'contrast', 'brightness', 'nobg', 'watermark', 'composite',
+        'qr', 'barcode'
     ],
     browser: [
         'browser', 'navigate', 'webpage', 'click', 'playwright', 'scrape', 'crawl', 'site', 'page', 'html'
@@ -47,11 +48,19 @@ const categoryKeywords = {
     ],
     system: [
         'screen', 'screenshot', 'clipboard', 'copy', 'paste', 'terminal', 'history', 'maccy',
-        'shortcut', 'shortcuts', 'voice', 'speak', 'say', 'tts', 'transcribe', 'audio'
+        'shortcut', 'shortcuts', 'voice', 'speak', 'say', 'tts', 'transcribe', 'audio',
+        'window', 'windows', 'focus', 'tile', 'minimize', 'bluetooth', 'airpods', 'brightness', 'display'
     ]
 };
 
 const toolCategories = {
+    listOpenWindows: 'system',
+    focusWindow: 'system',
+    tileWindows: 'system',
+    minimizeAllWindows: 'system',
+    generateQrCode: 'image',
+    connectBluetoothDevice: 'system',
+    setDisplayBrightness: 'system',
     getCalendarEvents: 'scheduling',
     createCalendarEvent: 'scheduling',
     createAppleReminder: 'scheduling',

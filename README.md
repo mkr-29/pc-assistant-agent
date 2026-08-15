@@ -149,6 +149,10 @@ The assistant includes specialized Model Context Protocol (MCP) and web intellig
 - **Telegram Voice-Note Reply & Speech** (`sendVoiceNoteResponse`, `speakText`): Speaks text aloud on Mac speakers or delivers spoken voice note bubbles to Telegram.
 - **Universal Local Audio Transcriber** (`transcribeAudioFile`): Transcribes local audio recordings (.mp3, .m4a, .wav) with Gemini multimodal AI.
 - **Stock, Crypto & FX Currency** (`getStockPrice`, `getCryptoPrice`, `convertCurrency`): Real-time stock quotes, cryptocurrency prices, and foreign exchange currency conversions.
+- **macOS Window & Workspace Manager** (`listOpenWindows`, `focusWindow`, `tileWindows`, `minimizeAllWindows`): Lists active application windows, focuses apps, tiles windows side-by-side (50/50 split), and minimizes windows.
+- **QR Code & Barcode Generator** (`generateQrCode`): Generates high-resolution PNG QR codes (URLs, text, Wi-Fi credentials) ready for Telegram delivery.
+- **Bluetooth Device Manager** (`connectBluetoothDevice`): Connects or disconnects paired Bluetooth headphones, AirPods, or peripherals.
+- **Display Brightness Controller** (`setDisplayBrightness`): Sets MacBook and external display brightness (0-100%).
 
 ## Testing
 

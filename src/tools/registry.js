@@ -22,6 +22,9 @@ import { createCrawlerTools } from './implementations/crawlerTools.js';
 import { createAppleTools } from './implementations/appleTools.js';
 import { createVoiceResponseTools } from './implementations/voiceResponseTools.js';
 import { createFinanceTools } from './implementations/financeTools.js';
+import { createWindowTools } from './implementations/windowTools.js';
+import { createQrTools } from './implementations/qrTools.js';
+import { createHardwareTools } from './implementations/hardwareTools.js';
 
 export function createToolRegistry({
     bot,
@@ -45,6 +48,9 @@ export function createToolRegistry({
         ...createAppleTools(),
         ...createVoiceResponseTools({ bot, chatId, resolveToolPath, ai, config }),
         ...createFinanceTools(),
+        ...createWindowTools(),
+        ...createQrTools({ resolveToolPath }),
+        ...createHardwareTools(),
         ...createClipboardTools(),
         ...createDownloadTools({ resolveToolPath }),
         ...createFilesystemTools({ resolveToolPath }),
