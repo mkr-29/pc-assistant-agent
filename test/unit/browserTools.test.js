@@ -308,3 +308,55 @@ test('browserExtractPageSemantics extracts semantic page data', async () => {
     assert.equal(result.data.mainContent.text, 'Hello world from the browser page');
     assert.equal(result.data.headingOutline.length, 1);
 });
+
+test('playwrightSearchWeb searches and returns structured results', async () => {
+    const fake = createFakeChromium();
+    fake.page.evaluate = async () => [
+        { title: 'Node.js Official', url: 'https://nodejs.org', snippet: 'Node.js JavaScript runtime' }
+    ];
+
+    const tools = createBrowserTools({ chromiumImpl: fake.chromiumImpl });
+    const result = await tools.playwrightSearchWeb({ query: 'nodejs' });
+
+    assert.equal(result.status, 'Success');
+    assert.equal(result.query, 'nodejs');
+    assert.equal(result.totalResults, 1);
+    assert.equal(result.results[0].title, 'Node.js Official');
+});
+
+test('playwrightYoutubeControl controls YouTube search and playback actions', async () => {
+    const fake = createFakeChromium();
+    fake.page.evaluate = async () => [
+        { title: 'Lo-fi Hip Hop Radio', url: 'https://youtube.com/watch?v=123', channel: 'Lofi Girl', duration: 'LIVE' }
+    ];
+
+    const tools = createBrowserTools({ chromiumImpl: fake.chromiumImpl });
+    const searchRes = await tools.playwrightYoutubeControl({ action: 'search', query: 'lofi' });
+
+    assert.equal(searchRes.status, 'Success');
+    assert.equal(searchRes.totalFound, 1);
+    assert.equal(searchRes.videos[0].title, 'Lo-fi Hip Hop Radio');
+
+    const playRes = await tools.playwrightYoutubeControl({ action: 'play', videoId: '123' });
+    assert.equal(playRes.status, 'Success');
+    assert.equal(playRes.action, 'play');
+});
+
+test('playwrightExtractArticle extracts clean article content', async () => {
+    const fake = createFakeChromium();
+    fake.page.evaluate = async () => ({
+        title: 'Building Agents with AI',
+        author: 'Alice',
+        url: 'https://example.com/ai-agents',
+        wordCount: 50,
+        content: 'AI agents operate with tools and autonomous execution loops.'
+    });
+
+    const tools = createBrowserTools({ chromiumImpl: fake.chromiumImpl });
+    const result = await tools.playwrightExtractArticle({ url: 'https://example.com/ai-agents' });
+
+    assert.equal(result.status, 'Success');
+    assert.equal(result.article.title, 'Building Agents with AI');
+    assert.equal(result.article.author, 'Alice');
+});
+

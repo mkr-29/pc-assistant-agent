@@ -2337,6 +2337,263 @@ export const setDisplayBrightnessTool = {
     }
 };
 
+export const playwrightSearchWebTool = {
+    name: 'playwrightSearchWeb',
+    description: 'Fast, deterministic search scraper via Playwright (DuckDuckGo/Google) returning organic search results with titles, links, and snippets.',
+    parameters: {
+        type: 'object',
+        properties: {
+            query: {
+                type: 'string',
+                description: 'Search query string.'
+            },
+            engine: {
+                type: 'string',
+                description: 'Search engine to use ("duckduckgo" or "google", default "duckduckgo").'
+            },
+            limit: {
+                type: 'number',
+                description: 'Maximum number of results (default 5).'
+            },
+            takeScreenshot: {
+                type: 'boolean',
+                description: 'Whether to take a PNG screenshot of the search results page.'
+            }
+        },
+        required: ['query']
+    }
+};
+
+export const playwrightYoutubeControlTool = {
+    name: 'playwrightYoutubeControl',
+    description: 'Fast deterministic YouTube interaction: search videos, play video by query or ID, pause/resume, seek, and get video details.',
+    parameters: {
+        type: 'object',
+        properties: {
+            action: {
+                type: 'string',
+                description: 'Action to perform: "search", "play", "pause", "seek", "getVideoDetails".'
+            },
+            query: {
+                type: 'string',
+                description: 'Search query or video title.'
+            },
+            videoId: {
+                type: 'string',
+                description: 'Optional specific YouTube video ID (e.g. "dQw4w9WgXcQ").'
+            },
+            seekSeconds: {
+                type: 'number',
+                description: 'Seconds to seek to (for "seek" action).'
+            },
+            takeScreenshot: {
+                type: 'boolean',
+                description: 'Whether to capture a PNG screenshot.'
+            }
+        },
+        required: ['action']
+    }
+};
+
+export const playwrightExtractArticleTool = {
+    name: 'playwrightExtractArticle',
+    description: 'Extracts clean reader-mode article content from any webpage (stripping ads, navbars, and headers).',
+    parameters: {
+        type: 'object',
+        properties: {
+            url: {
+                type: 'string',
+                description: 'Webpage URL to extract article text from.'
+            },
+            takeScreenshot: {
+                type: 'boolean',
+                description: 'Whether to capture a screenshot.'
+            }
+        },
+        required: ['url']
+    }
+};
+
+export const aiWebAgentActTool = {
+    name: 'aiWebAgentAct',
+    description: 'Autonomous AI Web Agent (Stagehand-style). Solves high-level goals on dynamic/unknown webpages (multi-step navigation, form filling, SPAs, clicking) without predefined selectors.',
+    parameters: {
+        type: 'object',
+        properties: {
+            goal: {
+                type: 'string',
+                description: 'High-level natural language goal to accomplish on the page.'
+            },
+            url: {
+                type: 'string',
+                description: 'Optional initial URL to start navigation from.'
+            },
+            maxSteps: {
+                type: 'number',
+                description: 'Maximum action steps to execute (default 5, max 15).'
+            },
+            takeScreenshot: {
+                type: 'boolean',
+                description: 'Whether to capture screenshots during execution.'
+            }
+        },
+        required: ['goal']
+    }
+};
+
+export const aiWebAgentExtractTool = {
+    name: 'aiWebAgentExtract',
+    description: 'Autonomous AI data extractor (Stagehand-style). Uses LLM vision/semantics to extract structured JSON data from any arbitrary webpage according to instructions or schema.',
+    parameters: {
+        type: 'object',
+        properties: {
+            instruction: {
+                type: 'string',
+                description: 'Extraction instruction describing what data to extract.'
+            },
+            schema: {
+                type: 'object',
+                description: 'Optional JSON schema or example structure to match.'
+            },
+            url: {
+                type: 'string',
+                description: 'Optional URL to navigate to before extraction.'
+            }
+        },
+        required: ['instruction']
+    }
+};
+
+export const aiWebAgentObserveTool = {
+    name: 'aiWebAgentObserve',
+    description: 'Observes an arbitrary webpage and discovers the best actionable UI elements for a given user instruction.',
+    parameters: {
+        type: 'object',
+        properties: {
+            instruction: {
+                type: 'string',
+                description: 'Instruction or intention (e.g. "find sign up button", "locate filter options").'
+            },
+            url: {
+                type: 'string',
+                description: 'Optional webpage URL.'
+            }
+        },
+        required: ['instruction']
+    }
+};
+
+export const cdpConnectChromeTool = {
+    name: 'cdpConnectChrome',
+    description: 'Connects to your real, running Google Chrome instance via Chrome DevTools Protocol (CDP) on port 9222 to access personal logged-in sessions (Netflix, YouTube Music, Spotify).',
+    parameters: {
+        type: 'object',
+        properties: {
+            cdpUrl: {
+                type: 'string',
+                description: 'CDP endpoint URL (default "http://127.0.0.1:9222").'
+            }
+        }
+    }
+};
+
+export const cdpListTabsTool = {
+    name: 'cdpListTabs',
+    description: 'Lists all open tabs in your real Google Chrome browser over CDP.',
+    parameters: {
+        type: 'object',
+        properties: {
+            cdpUrl: {
+                type: 'string',
+                description: 'CDP endpoint URL (default "http://127.0.0.1:9222").'
+            }
+        }
+    }
+};
+
+export const cdpControlMediaTool = {
+    name: 'cdpControlMedia',
+    description: 'Controls media playback (play/pause, next track, previous, volume) in YouTube Music, Netflix, Spotify, or video tabs in your real Chrome browser without losing login state.',
+    parameters: {
+        type: 'object',
+        properties: {
+            tabQuery: {
+                type: 'string',
+                description: 'Tab search query (e.g. "music.youtube", "netflix", "spotify", "youtube").'
+            },
+            action: {
+                type: 'string',
+                description: 'Media action: "playpause", "next", "previous", "volumeUp", "volumeDown", "mute".'
+            },
+            cdpUrl: {
+                type: 'string',
+                description: 'CDP endpoint URL (default "http://127.0.0.1:9222").'
+            }
+        }
+    }
+};
+
+export const cdpExecuteActionTool = {
+    name: 'cdpExecuteAction',
+    description: 'Executes actions (click, type, navigate, evaluate JS) directly inside any tab of your real logged-in Google Chrome browser via CDP.',
+    parameters: {
+        type: 'object',
+        properties: {
+            tabQuery: {
+                type: 'string',
+                description: 'Tab title or URL substring to target.'
+            },
+            action: {
+                type: 'string',
+                description: 'Action to execute: "click", "type", "navigate", "evaluate".'
+            },
+            selector: {
+                type: 'string',
+                description: 'CSS selector.'
+            },
+            text: {
+                type: 'string',
+                description: 'Text match.'
+            },
+            value: {
+                type: 'string',
+                description: 'Value to type or URL to navigate to.'
+            },
+            jsCode: {
+                type: 'string',
+                description: 'JavaScript code to evaluate in tab.'
+            },
+            takeScreenshot: {
+                type: 'boolean',
+                description: 'Whether to capture a screenshot of the tab.'
+            },
+            cdpUrl: {
+                type: 'string',
+                description: 'CDP endpoint URL.'
+            }
+        },
+        required: ['action']
+    }
+};
+
+export const cdpLaunchDebugChromeTool = {
+    name: 'cdpLaunchDebugChrome',
+    description: 'Helper to launch Google Chrome on macOS with remote debugging port 9222 enabled.',
+    parameters: {
+        type: 'object',
+        properties: {
+            port: {
+                type: 'number',
+                description: 'Remote debugging port (default 9222).'
+            },
+            profilePath: {
+                type: 'string',
+                description: 'Optional custom Chrome user data profile directory.'
+            }
+        }
+    }
+};
+
 export const customTools = [
     fileReaderTool,
     fileWriterTool,
@@ -2377,6 +2634,17 @@ export const customTools = [
     browserPressKeyTool,
     browserScreenshotTool,
     browserCloseTool,
+    playwrightSearchWebTool,
+    playwrightYoutubeControlTool,
+    playwrightExtractArticleTool,
+    aiWebAgentActTool,
+    aiWebAgentExtractTool,
+    aiWebAgentObserveTool,
+    cdpConnectChromeTool,
+    cdpListTabsTool,
+    cdpControlMediaTool,
+    cdpExecuteActionTool,
+    cdpLaunchDebugChromeTool,
     scheduleReminderTool,
     scheduleAgentTaskTool,
     listScheduledTasksTool,
@@ -2435,6 +2703,7 @@ export const customTools = [
     connectBluetoothDeviceTool,
     setDisplayBrightnessTool
 ];
+
 
 
 

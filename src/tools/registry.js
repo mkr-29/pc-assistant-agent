@@ -26,18 +26,24 @@ import { createWindowTools } from './implementations/windowTools.js';
 import { createQrTools } from './implementations/qrTools.js';
 import { createHardwareTools } from './implementations/hardwareTools.js';
 
+import { createAiWebAgentTools } from './implementations/aiWebAgentTools.js';
+import { createCdpTools } from './implementations/cdpTools.js';
+
 export function createToolRegistry({
     bot,
     chatId,
     resolveToolPath,
     ai,
-    config,
+    config = {},
     reminderScheduler,
     approvalManager
-}) {
+} = {}) {
+    const browserTools = createBrowserTools({ config });
     const registry = {
         ...createAppControlTools({ resolveToolPath }),
-        ...createBrowserTools({ config }),
+        ...browserTools,
+        ...createAiWebAgentTools({ browserTools, ai, config, resolveToolPath }),
+        ...createCdpTools({ screenshotDirectory: config?.browser?.screenshotDirectory }),
         ...createExtensionTools(),
         ...createMcpTools({ config }),
         ...createDocumentTools({ resolveToolPath }),

@@ -153,6 +153,10 @@ The assistant includes specialized Model Context Protocol (MCP) and web intellig
 - **QR Code & Barcode Generator** (`generateQrCode`): Generates high-resolution PNG QR codes (URLs, text, Wi-Fi credentials) ready for Telegram delivery.
 - **Bluetooth Device Manager** (`connectBluetoothDevice`): Connects or disconnects paired Bluetooth headphones, AirPods, or peripherals.
 - **Display Brightness Controller** (`setDisplayBrightness`): Sets MacBook and external display brightness (0-100%).
+- **Multi-Tier Browser Intelligence (3 Methods)**:
+  - **Method 1: Playwright Fast Deterministic Tools** (`playwrightSearchWeb`, `playwrightYoutubeControl`, `playwrightExtractArticle`, `browserNavigate`, `browserClick`, `browserType`): High-speed, deterministic scraping, search result extraction, and YouTube playback without extra LLM token hops.
+  - **Method 2: Stagehand / AI Web Agent** (`aiWebAgentAct`, `aiWebAgentExtract`, `aiWebAgentObserve`): Autonomous multi-step goal execution on complex dynamic SPAs and unknown websites with zero selector maintenance.
+  - **Method 3: CDP over Existing Chrome** (`cdpConnectChrome`, `cdpListTabs`, `cdpControlMedia`, `cdpExecuteAction`, `cdpLaunchDebugChrome`): Connects to the user's real running Chrome (port 9222) to control media in personal logged-in sessions (YouTube Music, Netflix, Spotify) and execute actions without CAPTCHA friction.
 
 ## Testing
 

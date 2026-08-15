@@ -23,7 +23,8 @@ const categoryKeywords = {
         'qr', 'barcode'
     ],
     browser: [
-        'browser', 'navigate', 'webpage', 'click', 'playwright', 'scrape', 'crawl', 'site', 'page', 'html'
+        'browser', 'navigate', 'webpage', 'click', 'playwright', 'scrape', 'crawl', 'site', 'page', 'html',
+        'stagehand', 'agent', 'cdp', 'netflix', 'spotify', 'youtube', 'extract', 'observe', 'act'
     ],
     extension: [
         'chrome', 'tab', 'brave', 'safari', 'extension', 'play', 'pause', 'volume', 'mute'
@@ -54,6 +55,17 @@ const categoryKeywords = {
 };
 
 const toolCategories = {
+    playwrightSearchWeb: 'browser',
+    playwrightYoutubeControl: 'browser',
+    playwrightExtractArticle: 'browser',
+    aiWebAgentAct: 'browser',
+    aiWebAgentExtract: 'browser',
+    aiWebAgentObserve: 'browser',
+    cdpConnectChrome: 'browser',
+    cdpListTabs: 'browser',
+    cdpControlMedia: 'browser',
+    cdpExecuteAction: 'browser',
+    cdpLaunchDebugChrome: 'browser',
     listOpenWindows: 'system',
     focusWindow: 'system',
     tileWindows: 'system',

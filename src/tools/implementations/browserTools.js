@@ -602,6 +602,261 @@ export function createBrowserTools({
                 status: 'Success',
                 message: 'Browser session closed.'
             };
+        }),
+
+        playwrightSearchWeb: ({ query, engine = 'duckduckgo', limit = 5, takeScreenshot } = {}) => runBrowserAction(async () => {
+            if (!query || typeof query !== 'string') {
+                throw new Error('query is required for playwrightSearchWeb.');
+            }
+
+            const activePage = await ensurePage();
+            const safeLimit = Math.max(1, Math.min(Number(limit) || 5, 20));
+            const searchUrl = engine === 'google'
+                ? `https://www.google.com/search?q=${encodeURIComponent(query.trim())}`
+                : `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query.trim())}`;
+
+            await activePage.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout });
+            if (typeof activePage.waitForLoadState === 'function') {
+                await activePage.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
+            }
+
+            const results = await activePage.evaluate(({ safeLimit: maxCount, engine: chosenEngine }) => {
+                const items = [];
+                if (chosenEngine === 'google') {
+                    const containers = document.querySelectorAll('div.g, div[data-hveid]');
+                    for (const el of containers) {
+                        if (items.length >= maxCount) break;
+                        const titleEl = el.querySelector('h3');
+                        const linkEl = el.querySelector('a');
+                        const snippetEl = el.querySelector('div[data-sncf], div.VwiC3b, span.aCOpRe');
+                        if (titleEl && linkEl && linkEl.href && !linkEl.href.includes('google.com/search')) {
+                            items.push({
+                                title: titleEl.innerText.trim(),
+                                url: linkEl.href,
+                                snippet: snippetEl ? snippetEl.innerText.trim() : ''
+                            });
+                        }
+                    }
+                } else {
+                    const links = document.querySelectorAll('.result__body, .results_links, .web-result');
+                    for (const el of links) {
+                        if (items.length >= maxCount) break;
+                        const titleEl = el.querySelector('.result__title, .result__a');
+                        const snippetEl = el.querySelector('.result__snippet');
+                        const linkEl = el.querySelector('a.result__url, a.result__title, a');
+                        if (titleEl && linkEl && linkEl.href) {
+                            items.push({
+                                title: titleEl.innerText.trim(),
+                                url: linkEl.href,
+                                snippet: snippetEl ? snippetEl.innerText.trim() : ''
+                            });
+                        }
+                    }
+                }
+                return items;
+            }, { safeLimit, engine });
+
+            const screenshotPath = await maybeTakeScreenshot(activePage, takeScreenshot, 'search');
+
+            return {
+                status: 'Success',
+                query,
+                engine,
+                totalResults: results.length,
+                results,
+                ...(screenshotPath ? { screenshotPath } : {})
+            };
+        }),
+
+        playwrightYoutubeControl: ({ action = 'search', query, videoId, seekSeconds, takeScreenshot } = {}) => runBrowserAction(async () => {
+            const activePage = await ensurePage();
+
+            if (action === 'search') {
+                if (!query) throw new Error('query is required for YouTube search.');
+                const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query.trim())}`;
+                await activePage.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout });
+                if (typeof activePage.waitForLoadState === 'function') {
+                    await activePage.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
+                }
+
+                const videos = await activePage.evaluate(() => {
+                    const items = [];
+                    const elements = document.querySelectorAll('ytd-video-renderer, #contents ytd-video-renderer');
+                    for (const el of elements) {
+                        if (items.length >= 10) break;
+                        const titleEl = el.querySelector('#video-title');
+                        const channelEl = el.querySelector('#channel-name, .ytd-channel-name');
+                        const durationEl = el.querySelector('span.ytd-thumbnail-overlay-time-status-renderer, #length');
+                        if (titleEl && titleEl.href) {
+                            items.push({
+                                title: (titleEl.innerText || titleEl.getAttribute('title') || '').trim(),
+                                url: titleEl.href,
+                                channel: channelEl ? channelEl.innerText.trim() : '',
+                                duration: durationEl ? durationEl.innerText.trim() : ''
+                            });
+                        }
+                    }
+                    return items;
+                });
+
+                const screenshotPath = await maybeTakeScreenshot(activePage, takeScreenshot, 'youtube-search');
+                return {
+                    status: 'Success',
+                    action: 'search',
+                    query,
+                    totalFound: videos.length,
+                    videos,
+                    ...(screenshotPath ? { screenshotPath } : {})
+                };
+            }
+
+            if (action === 'play') {
+                let targetUrl = '';
+                if (videoId) {
+                    targetUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId.trim())}`;
+                } else if (query) {
+                    targetUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query.trim())}`;
+                } else {
+                    throw new Error('Either videoId or query is required to play a YouTube video.');
+                }
+
+                await activePage.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout });
+                if (!videoId) {
+                    // Click first result
+                    await activePage.locator('ytd-video-renderer #video-title').first().click({ timeout: 5000 }).catch(() => {});
+                }
+
+                // Unmute and ensure playing
+                await activePage.evaluate(() => {
+                    const video = document.querySelector('video');
+                    if (video) {
+                        video.muted = false;
+                        video.play();
+                    }
+                }).catch(() => {});
+
+                const screenshotPath = await maybeTakeScreenshot(activePage, takeScreenshot, 'youtube-play');
+                return {
+                    status: 'Success',
+                    action: 'play',
+                    url: activePage.url(),
+                    title: await activePage.title(),
+                    message: 'Playing YouTube video.',
+                    ...(screenshotPath ? { screenshotPath } : {})
+                };
+            }
+
+            if (action === 'pause') {
+                const isPaused = await activePage.evaluate(() => {
+                    const video = document.querySelector('video');
+                    if (video) {
+                        if (video.paused) {
+                            video.play();
+                            return false;
+                        } else {
+                            video.pause();
+                            return true;
+                        }
+                    }
+                    return null;
+                });
+
+                return {
+                    status: 'Success',
+                    action: 'pause',
+                    paused: isPaused,
+                    message: isPaused ? 'Paused YouTube playback.' : 'Resumed YouTube playback.'
+                };
+            }
+
+            if (action === 'seek') {
+                const targetSec = Number(seekSeconds) || 0;
+                await activePage.evaluate((sec) => {
+                    const video = document.querySelector('video');
+                    if (video) {
+                        video.currentTime = sec;
+                    }
+                }, targetSec);
+
+                return {
+                    status: 'Success',
+                    action: 'seek',
+                    seekSeconds: targetSec,
+                    message: `Seeked playback to ${targetSec}s.`
+                };
+            }
+
+            if (action === 'getVideoDetails') {
+                const details = await activePage.evaluate(() => {
+                    const video = document.querySelector('video');
+                    const titleEl = document.querySelector('h1.ytd-watch-metadata, #title h1');
+                    const channelEl = document.querySelector('#owner #channel-name');
+                    return {
+                        title: titleEl ? titleEl.innerText.trim() : document.title,
+                        channel: channelEl ? channelEl.innerText.trim() : '',
+                        currentTime: video ? Math.round(video.currentTime) : 0,
+                        duration: video ? Math.round(video.duration) : 0,
+                        paused: video ? video.paused : true,
+                        volume: video ? Math.round(video.volume * 100) : 100
+                    };
+                });
+
+                return {
+                    status: 'Success',
+                    action: 'getVideoDetails',
+                    details
+                };
+            }
+
+            throw new Error(`Unsupported YouTube action: ${action}`);
+        }),
+
+        playwrightExtractArticle: ({ url, takeScreenshot } = {}) => runBrowserAction(async () => {
+            if (!url) throw new Error('url is required for playwrightExtractArticle.');
+            const targetUrl = validateUrl(url);
+            const activePage = await ensurePage();
+
+            await activePage.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout });
+            if (typeof activePage.waitForLoadState === 'function') {
+                await activePage.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
+            }
+
+            const article = await activePage.evaluate(() => {
+                const title = document.title || '';
+                const authorEl = document.querySelector('meta[name="author"], .author, [rel="author"]');
+                const author = authorEl ? (authorEl.getAttribute('content') || authorEl.innerText || '').trim() : '';
+
+                // Find largest text container
+                const candidates = Array.from(document.querySelectorAll('article, main, .article-body, .post-content, #content, .entry-content, body'));
+                let best = document.body;
+                let maxLen = 0;
+                for (const c of candidates) {
+                    const clone = c.cloneNode(true);
+                    clone.querySelectorAll('nav, footer, header, aside, script, style, noscript, .ad, .advertisement').forEach(el => el.remove());
+                    const len = (clone.innerText || '').trim().length;
+                    if (len > maxLen) {
+                        maxLen = len;
+                        best = clone;
+                    }
+                }
+
+                const content = (best.innerText || '').replace(/\n\s*\n+/g, '\n\n').trim();
+                return {
+                    title,
+                    author,
+                    url: document.location.href,
+                    wordCount: content.split(/\s+/).filter(Boolean).length,
+                    content
+                };
+            });
+
+            const screenshotPath = await maybeTakeScreenshot(activePage, takeScreenshot, 'article');
+
+            return {
+                status: 'Success',
+                article,
+                ...(screenshotPath ? { screenshotPath } : {})
+            };
         })
     };
 }
