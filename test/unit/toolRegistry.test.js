@@ -130,7 +130,17 @@ test('custom tool declarations expose the expected tool names', () => {
             'rememberUserFact',
             'getUserProfile',
             'updateUserProfile',
-            'searchUserMemories'
+            'searchUserMemories',
+            'firecrawlScrape',
+            'firecrawlSearch',
+            'firecrawlCrawl',
+            'firecrawlMap',
+            'firecrawlParse',
+            'firecrawlResearch',
+            'firecrawlDeveloperSearch',
+            'firecrawlAgent',
+            'firecrawlMonitor',
+            'firecrawlStatus'
         ]
     );
 });

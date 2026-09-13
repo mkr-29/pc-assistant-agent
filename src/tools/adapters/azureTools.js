@@ -40,7 +40,7 @@ const categoryKeywords = {
         'search', 'brave', 'google', 'lookup', 'find', 'fetch', 'url', 'web', 'website', 'page', 'doc',
         'docs', 'documentation', 'latest', 'news', 'query', 'article', 'online', 'http', 'https',
         'pdf', 'pandoc', 'convert', 'sitemap', 'crawl', 'ocr', 'chart', 'plot', 'graph', 'youtube', 'transcript',
-        'note', 'notes'
+        'note', 'notes', 'firecrawl', 'scrape', 'crawler', 'paper', 'papers', 'research', 'pubmed', 'arxiv', 'monitor'
     ],
     finance: [
         'stock', 'stocks', 'share', 'shares', 'price', 'quote', 'market', 'nasdaq', 'nyse',
@@ -161,7 +161,17 @@ const toolCategories = {
     describeScreen: 'system',
     readClipboard: 'system',
     writeClipboard: 'system',
-    openTerminal: 'system'
+    openTerminal: 'system',
+    firecrawlScrape: 'search',
+    firecrawlSearch: 'search',
+    firecrawlCrawl: 'search',
+    firecrawlMap: 'search',
+    firecrawlParse: 'search',
+    firecrawlResearch: 'search',
+    firecrawlDeveloperSearch: 'coding',
+    firecrawlAgent: 'browser',
+    firecrawlMonitor: 'scheduling',
+    firecrawlStatus: 'system'
 };
 
 const CORE_TOOL_NAMES = new Set([

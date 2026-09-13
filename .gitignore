@@ -17,6 +17,7 @@ secrets.yml
 
 # Runtime Data, Storage & Output
 .data/
+.firecrawl/
 graphify-out/
 screenshots/
 browser-screenshots/

@@ -82,7 +82,7 @@ function parseSitemapXml(xml = '') {
     return urls;
 }
 
-export function createCrawlerTools({ resolveToolPath = p => p } = {}) {
+export function createCrawlerTools({ resolveToolPath = p => p, config = {} } = {}) {
     return {
         parseSitemap: async ({ sitemapUrl } = {}) => {
             if (!sitemapUrl || typeof sitemapUrl !== 'string') {
@@ -149,6 +149,48 @@ export function createCrawlerTools({ resolveToolPath = p => p } = {}) {
             const saveDir = saveToDirectory ? resolveToolPath(saveToDirectory) : null;
             if (saveDir) {
                 fs.mkdirSync(saveDir, { recursive: true });
+            }
+
+            const firecrawlKey = config?.firecrawl?.apiKey || process.env.FIRECRAWL_API_KEY;
+            if (firecrawlKey) {
+                try {
+                    const FirecrawlApp = (await import('@mendable/firecrawl-js')).default;
+                    const client = new FirecrawlApp({ apiKey: firecrawlKey });
+                    const res = await client.crawl(normalizedStart, {
+                        limit,
+                        scrapeOptions: { formats: ['markdown'] }
+                    });
+                    if (res?.data && res.data.length > 0) {
+                        const pages = res.data.map((page, index) => {
+                            const title = page.metadata?.title || `Page ${index + 1}`;
+                            const pageUrl = page.metadata?.sourceURL || page.metadata?.url || normalizedStart;
+                            const text = page.markdown || '';
+                            let savedFilePath = null;
+                            if (saveDir) {
+                                const safeFileName = `${index + 1}-${title.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40) || 'doc'}.md`;
+                                savedFilePath = path.join(saveDir, safeFileName);
+                                fs.writeFileSync(savedFilePath, `# ${title}\n\nSource: ${pageUrl}\n\n${text}`, 'utf8');
+                            }
+                            return {
+                                url: pageUrl,
+                                title,
+                                characterCount: text.length,
+                                preview: text.slice(0, 300),
+                                savedFilePath: savedFilePath || undefined
+                            };
+                        });
+                        return {
+                            status: 'Success',
+                            provider: 'firecrawl',
+                            startUrl: normalizedStart,
+                            pagesCrawled: pages.length,
+                            savedDirectory: saveDir || undefined,
+                            pages
+                        };
+                    }
+                } catch {
+                    // Fall back to native crawler
+                }
             }
 
             try {

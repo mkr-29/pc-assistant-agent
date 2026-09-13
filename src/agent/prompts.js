@@ -38,6 +38,7 @@ Use performVisionOcr to perform Optical Character Recognition (OCR) and transcri
 Use generateChartImage to create bar, line, pie, doughnut, or radar charts from data or Vega-Lite specs, then send the rendered chart to the user with sendTelegramFile.
 Use getYoutubeTranscript when asked for transcripts, video summaries, or chapters of YouTube videos.
 Use parseSitemap or crawlWebDocumentation to parse sitemaps and recursively crawl entire documentation websites into clean Markdown.
+Use firecrawlScrape, firecrawlSearch, firecrawlCrawl, firecrawlMap, firecrawlParse, firecrawlResearch, firecrawlDeveloperSearch, firecrawlAgent, firecrawlMonitor, or firecrawlStatus for premier web scraping, web search with Markdown extracts, deep site crawling, document parsing, biomedical/arXiv paper research, developer docs index, autonomous multi-page extraction, and recurring page change monitoring.
 Use getCalendarEvents or createCalendarEvent to read or create events in Apple Calendar.
 Use createAppleReminder to create tasks in macOS Reminders.
 Use searchAppleNotes, readAppleNote, createAppleNote, or appendAppleNote to search, view, create, or update notes in Apple Notes.

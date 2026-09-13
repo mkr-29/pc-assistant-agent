@@ -29,6 +29,7 @@ import { createHardwareTools } from './implementations/hardwareTools.js';
 import { createAiWebAgentTools } from './implementations/aiWebAgentTools.js';
 import { createCdpTools } from './implementations/cdpTools.js';
 import { createMemoryTools } from './implementations/memoryTools.js';
+import { createFirecrawlTools } from './implementations/firecrawlTools.js';
 
 export function createToolRegistry({
     bot,
@@ -55,7 +56,8 @@ export function createToolRegistry({
         ...createOcrTools({ resolveToolPath, ai, config }),
         ...createChartTools({ resolveToolPath }),
         ...createYoutubeTranscriptTools(),
-        ...createCrawlerTools({ resolveToolPath }),
+        ...createCrawlerTools({ resolveToolPath, config }),
+        ...createFirecrawlTools({ config, resolveToolPath }),
         ...createAppleTools(),
         ...createVoiceResponseTools({ bot, chatId, resolveToolPath, ai, config }),
         ...createFinanceTools(),

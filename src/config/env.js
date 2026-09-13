@@ -90,6 +90,9 @@ export function loadConfig(env = process.env) {
         },
         targetProjectPath: env.TARGET_PROJECT_PATH || '~',
         braveApiKey: env.BRAVE_API_KEY,
+        firecrawl: {
+            apiKey: env.FIRECRAWL_API_KEY
+        },
         screenAnalysisModel: env.SCREEN_ANALYSIS_MODEL || DEFAULT_SCREEN_ANALYSIS_MODEL,
         browser: {
             headless: parseBooleanEnv(env.BROWSER_HEADLESS, true),

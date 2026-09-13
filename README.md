@@ -158,6 +158,26 @@ The assistant includes specialized Model Context Protocol (MCP) and web intellig
   - **Method 2: Stagehand / AI Web Agent** (`aiWebAgentAct`, `aiWebAgentExtract`, `aiWebAgentObserve`): Autonomous multi-step goal execution on complex dynamic SPAs and unknown websites with zero selector maintenance.
   - **Method 3: CDP over Existing Chrome** (`cdpConnectChrome`, `cdpListTabs`, `cdpControlMedia`, `cdpExecuteAction`, `cdpLaunchDebugChrome`): Connects to the user's real running Chrome (port 9222) to control media in personal logged-in sessions (YouTube Music, Netflix, Spotify) and execute actions without CAPTCHA friction.
 
+## Firecrawl Web Context & Extraction Tools
+
+The assistant integrates the [Firecrawl](https://firecrawl.dev) API and SDK (`@mendable/firecrawl-js`) for premier web scraping, search, deep crawling, and document parsing:
+
+- **Firecrawl Scrape** (`firecrawlScrape`): Scrapes any webpage with full JavaScript rendering and anti-bot bypass, returning clean LLM-ready Markdown and metadata.
+- **Firecrawl Search** (`firecrawlSearch`): Live web search returning full-page Markdown extracts and structured snippets directly in the search response.
+- **Firecrawl Crawl** (`firecrawlCrawl`): Recursively crawls entire documentation websites up to specified depths and page limits, optionally saving Markdown files locally.
+- **Firecrawl Map** (`firecrawlMap`): Fast URL topology and sitemap discovery for any domain.
+- **Firecrawl Parse** (`firecrawlParse`): Converts local documents (PDF, DOCX, DOC, XLSX, XLS, HTML, RTF, ODT) into clean Markdown.
+- **Firecrawl Research Index** (`firecrawlResearch`): Queries ~43M scientific and biomedical paper abstracts (PubMed, bioRxiv, medRxiv, arXiv) with citation expansion.
+- **Firecrawl Developer Index** (`firecrawlDeveloperSearch`): Searches technical documentation, GitHub issues, pull requests, and READMEs curated for coding agents.
+- **Firecrawl Autonomous Agent** (`firecrawlAgent`): Autonomous multi-page extraction agent to gather information and extract structured data matching a prompt.
+- **Firecrawl Web Monitors** (`firecrawlMonitor`): Schedules recurring page checks (e.g. `every 1 hour`) with AI goal filtering to detect meaningful content changes.
+- **Firecrawl Status** (`firecrawlStatus`): Inspects remaining credits, plan allowances, concurrency limits, and billing cycles.
+
+To enable Firecrawl, set `FIRECRAWL_API_KEY` in your `.env` file:
+```dotenv
+FIRECRAWL_API_KEY=fc-...
+```
+
 ## Testing
 
 ```bash

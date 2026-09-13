@@ -2818,6 +2818,266 @@ export const searchUserMemoriesTool = {
     }
 };
 
+export const firecrawlScrapeTool = {
+    name: 'firecrawlScrape',
+    description: 'Scrapes a webpage using Firecrawl with JavaScript rendering, anti-bot bypass, and returns clean LLM-ready Markdown and metadata. Can optionally save output to a file.',
+    parameters: {
+        type: 'object',
+        properties: {
+            url: {
+                type: 'string',
+                description: 'The URL of the webpage or public document to scrape.'
+            },
+            formats: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Formats to return (e.g. ["markdown"], ["html"], ["screenshot"]). Defaults to ["markdown"].'
+            },
+            onlyMainContent: {
+                type: 'boolean',
+                description: 'Whether to extract only the main content, stripping navbars, headers, footers (default true).'
+            },
+            waitFor: {
+                type: 'number',
+                description: 'Milliseconds to wait for dynamic content to render before scraping (optional).'
+            },
+            includeTags: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'HTML tags to specifically include (e.g. ["article", "main", "p"]).'
+            },
+            excludeTags: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'HTML tags to specifically exclude (e.g. ["nav", "footer", "aside"]).'
+            },
+            saveToFile: {
+                type: 'string',
+                description: 'Optional local file path to save the scraped Markdown content.'
+            }
+        },
+        required: ['url']
+    }
+};
+
+export const firecrawlSearchTool = {
+    name: 'firecrawlSearch',
+    description: 'Searches the live web using Firecrawl search API, returning top web results with clean Markdown content and snippets for each result.',
+    parameters: {
+        type: 'object',
+        properties: {
+            query: {
+                type: 'string',
+                description: 'The search query to look up on the web.'
+            },
+            limit: {
+                type: 'number',
+                description: 'Maximum number of search results to return (default 5, max 20).'
+            },
+            scrapeOptions: {
+                type: 'object',
+                description: 'Scrape options for discovered pages (e.g. { formats: ["markdown"] }).'
+            },
+            sources: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Optional sources list (e.g. ["web"]).'
+            }
+        },
+        required: ['query']
+    }
+};
+
+export const firecrawlCrawlTool = {
+    name: 'firecrawlCrawl',
+    description: 'Recursively crawls an entire website or documentation section using Firecrawl, extracting clean Markdown for each page up to the limit, with optional saving to directory.',
+    parameters: {
+        type: 'object',
+        properties: {
+            url: {
+                type: 'string',
+                description: 'The starting root URL of the website or documentation to crawl.'
+            },
+            limit: {
+                type: 'number',
+                description: 'Maximum number of pages to crawl (default 10, max 50).'
+            },
+            maxDepth: {
+                type: 'number',
+                description: 'Maximum link traversal depth from the starting URL.'
+            },
+            allowBackwardLinks: {
+                type: 'boolean',
+                description: 'Whether to allow links that navigate backwards towards parent paths.'
+            },
+            allowExternalLinks: {
+                type: 'boolean',
+                description: 'Whether to allow following external links outside the starting domain.'
+            },
+            saveToDirectory: {
+                type: 'string',
+                description: 'Optional local directory path to save Markdown files for each crawled page.'
+            }
+        },
+        required: ['url']
+    }
+};
+
+export const firecrawlMapTool = {
+    name: 'firecrawlMap',
+    description: 'Fast URL and sitemap discovery for a website using Firecrawl map API. Returns all discovered links and page titles.',
+    parameters: {
+        type: 'object',
+        properties: {
+            url: {
+                type: 'string',
+                description: 'The website domain or root URL to map (e.g. "https://docs.stripe.com").'
+            },
+            search: {
+                type: 'string',
+                description: 'Optional keyword or pattern to filter discovered URLs.'
+            },
+            limit: {
+                type: 'number',
+                description: 'Maximum number of links to return (default 50, max 500).'
+            },
+            ignoreSitemap: {
+                type: 'boolean',
+                description: 'Whether to ignore sitemap.xml files during URL discovery.'
+            }
+        },
+        required: ['url']
+    }
+};
+
+export const firecrawlParseTool = {
+    name: 'firecrawlParse',
+    description: 'Parses local documents (PDF, DOCX, DOC, XLSX, XLS, HTML, RTF, ODT) into clean Markdown and structured text using Firecrawl document parser.',
+    parameters: {
+        type: 'object',
+        properties: {
+            filePath: {
+                type: 'string',
+                description: 'Path to the local file to parse.'
+            },
+            saveToFile: {
+                type: 'string',
+                description: 'Optional output path to save the parsed Markdown.'
+            }
+        },
+        required: ['filePath']
+    }
+};
+
+export const firecrawlResearchTool = {
+    name: 'firecrawlResearch',
+    description: 'Searches Firecrawl\'s scientific paper index (~43M abstracts across PubMed, arXiv, bioRxiv, medRxiv) and expands citations/similar papers.',
+    parameters: {
+        type: 'object',
+        properties: {
+            query: {
+                type: 'string',
+                description: 'Scientific topic, medical query, or research question.'
+            },
+            type: {
+                type: 'string',
+                description: 'Research type: "papers" for literature search, or "similar_papers" to find related papers for a given paperId (default "papers").'
+            },
+            paperId: {
+                type: 'string',
+                description: 'The paper ID when using type "similar_papers".'
+            },
+            limit: {
+                type: 'number',
+                description: 'Maximum number of papers to return (default 5, max 25).'
+            }
+        },
+        required: ['query']
+    }
+};
+
+export const firecrawlDeveloperSearchTool = {
+    name: 'firecrawlDeveloperSearch',
+    description: 'Searches Firecrawl\'s developer index built for coding agents: GitHub issues, merged PRs, repository READMEs, and curated technical documentation.',
+    parameters: {
+        type: 'object',
+        properties: {
+            query: {
+                type: 'string',
+                description: 'Developer query, library name, bug description, or technical how-to.'
+            },
+            limit: {
+                type: 'number',
+                description: 'Maximum number of results to return (default 5, max 20).'
+            }
+        },
+        required: ['query']
+    }
+};
+
+export const firecrawlAgentTool = {
+    name: 'firecrawlAgent',
+    description: 'Executes Firecrawl\'s autonomous web extraction agent to navigate, gather multi-page information, and extract structured data matching a prompt.',
+    parameters: {
+        type: 'object',
+        properties: {
+            prompt: {
+                type: 'string',
+                description: 'Natural language instruction describing what web data to gather or extract.'
+            },
+            urls: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Optional list of starting URLs for the extraction agent.'
+            },
+            schema: {
+                type: 'object',
+                description: 'Optional JSON schema defining the desired output structure.'
+            }
+        },
+        required: ['prompt']
+    }
+};
+
+export const firecrawlMonitorTool = {
+    name: 'firecrawlMonitor',
+    description: 'Manages Firecrawl recurring web monitors to watch pages or search results for changes, filter with AI goals, and inspect check history.',
+    parameters: {
+        type: 'object',
+        properties: {
+            action: {
+                type: 'string',
+                description: 'Monitor action: "list" (list active monitors), "create" (schedule new monitor), "delete" (remove monitor), or "checks" (view recent check logs). Default "list".'
+            },
+            url: {
+                type: 'string',
+                description: 'URL to monitor (required when action is "create").'
+            },
+            cadence: {
+                type: 'string',
+                description: 'Schedule interval (e.g. "every 30 minutes", "every 1 hour", "every 24 hours", or cron expression). Default "every 1 hour".'
+            },
+            goal: {
+                type: 'string',
+                description: 'Natural language AI filtering goal (e.g. "Alert when pricing changes or new tier is added").'
+            },
+            monitorId: {
+                type: 'string',
+                description: 'ID of the monitor (required for "delete" and "checks" actions).'
+            }
+        }
+    }
+};
+
+export const firecrawlStatusTool = {
+    name: 'firecrawlStatus',
+    description: 'Checks Firecrawl authentication status, credit balance, concurrency limit, and billing cycle.',
+    parameters: {
+        type: 'object',
+        properties: {}
+    }
+};
+
 export const customTools = [
     fileReaderTool,
     fileWriterTool,
@@ -2935,7 +3195,17 @@ export const customTools = [
     rememberUserFactTool,
     getUserProfileTool,
     updateUserProfileTool,
-    searchUserMemoriesTool
+    searchUserMemoriesTool,
+    firecrawlScrapeTool,
+    firecrawlSearchTool,
+    firecrawlCrawlTool,
+    firecrawlMapTool,
+    firecrawlParseTool,
+    firecrawlResearchTool,
+    firecrawlDeveloperSearchTool,
+    firecrawlAgentTool,
+    firecrawlMonitorTool,
+    firecrawlStatusTool
 ];
 
 
