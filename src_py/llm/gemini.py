@@ -1,13 +1,16 @@
+"""
+Gemini LLM provider
+"""
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from .base import LLMProvider
 import logging
 
 logger = logging.getLogger(__name__)
 
 try:
-    from google import genai
-    from google.genai import types
+    import google.generativeai as genai
+    from google.generativeai.types import GenerationConfig
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -21,8 +24,10 @@ class GeminiProvider(LLMProvider):
         if not GEMINI_AVAILABLE:
             raise ImportError("Google Generative AI package is required for Gemini provider")
 
-        # Configure the Gemini client
-        self.client = genai.Client(api_key=api_key)
+        # Configure the Gemini API key
+        genai.configure(api_key=api_key)
+        # Store the model name for use in generate_content
+        self.model_name = model
 
     async def generate_text(self, prompt: str, system_instruction: str = "",
                           temperature: float = 0.7, max_tokens: Optional[int] = None) -> str:
@@ -34,16 +39,17 @@ class GeminiProvider(LLMProvider):
                 full_prompt = f"{system_instruction}\n\n{prompt}"
 
             # Configure generation parameters
-            config = types.GenerateContentConfig(
+            config = GenerationConfig(
                 temperature=temperature,
                 max_output_tokens=max_tokens or 8192,
             )
 
+            # Create the model instance
+            model = genai.GenerativeModel(self.model_name)
             # Generate content
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=full_prompt,
-                config=config
+            response = model.generate_content(
+                full_prompt,
+                generation_config=config
             )
 
             return response.text

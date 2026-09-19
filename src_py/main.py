@@ -16,7 +16,7 @@ load_dotenv()
 from config.env import load_config, validate_config
 from memory.stores import ConversationHistoryStore, KnowledgeMemoryStore, UserProfileStore
 from agent.graph import agent_graph
-from telegram.bot import TelegramBot
+from telegram_integration.bot import TelegramBot
 import logging
 
 # Configure logging
