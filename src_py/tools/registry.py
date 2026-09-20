@@ -36,15 +36,34 @@ class ToolRegistry:
         return self.tools.get(name)
 
     async def execute_tool(self, name: str, **kwargs) -> Any:
-        """Execute a tool function handling both sync and async functions"""
+        """Execute a tool function handling both sync and async functions with metrics tracking"""
         func = self.get_tool(name)
         if not func:
             raise KeyError(f"Tool '{name}' is not registered.")
 
-        if asyncio.iscoroutinefunction(func):
-            return await func(**kwargs)
-        else:
-            return func(**kwargs)
+        try:
+            if asyncio.iscoroutinefunction(func):
+                result = await func(**kwargs)
+            else:
+                result = func(**kwargs)
+
+            try:
+                from monitoring.metrics import metrics_collector
+                is_success = True
+                if isinstance(result, dict) and "success" in result:
+                    is_success = bool(result["success"])
+                metrics_collector.record_tool_call(name, is_success)
+            except Exception:
+                pass
+
+            return result
+        except Exception as e:
+            try:
+                from monitoring.metrics import metrics_collector
+                metrics_collector.record_tool_call(name, False)
+            except Exception:
+                pass
+            raise
 
     def list_tools(self) -> List[str]:
         """List all registered tool names"""
@@ -60,6 +79,58 @@ class ToolRegistry:
         if func and func.__doc__:
             return func.__doc__.strip()
         return "No description available"
+
+    def generate_markdown_catalog(self) -> str:
+        """Generate a complete Markdown catalog of all registered tools grouped by category."""
+        lines = [
+            "# PC Assistant Agent - Tool Catalog",
+            "",
+            f"Total Tools Registered: **{len(self.tools)}**",
+            "",
+            "## Table of Categories",
+        ]
+        categories = sorted(self._tool_categories.keys())
+        for cat in categories:
+            lines.append(f"- [{cat.capitalize()} Tools](#{cat.lower()}-tools) ({len(self._tool_categories[cat])} tools)")
+        lines.append("")
+
+        for cat in categories:
+            tool_names = sorted(self._tool_categories[cat])
+            lines.append(f"## {cat.capitalize()} Tools")
+            lines.append("")
+            for name in tool_names:
+                func = self.tools[name]
+                doc = (func.__doc__ or "").strip()
+                summary = doc.split("\n")[0] if doc else "No description provided."
+                sig = inspect.signature(func)
+
+                lines.append(f"### `{name}`")
+                lines.append(f"**Description**: {summary}")
+                lines.append("")
+                lines.append(f"**Signature**: `{name}{sig}`")
+                lines.append("")
+
+                params = []
+                for p_name, p in sig.parameters.items():
+                    req = "Yes" if p.default is inspect.Parameter.empty else "No"
+                    default = "-" if p.default is inspect.Parameter.empty else str(p.default)
+                    p_type = getattr(p.annotation, "__name__", str(p.annotation)) if p.annotation is not inspect.Parameter.empty else "Any"
+                    params.append((p_name, p_type, req, default))
+
+                if params:
+                    lines.append("| Parameter | Type | Required | Default |")
+                    lines.append("| :--- | :--- | :--- | :--- |")
+                    for p_name, p_type, req, default in params:
+                        lines.append(f"| `{p_name}` | `{p_type}` | {req} | `{default}` |")
+                    lines.append("")
+                else:
+                    lines.append("*No parameters required.*")
+                    lines.append("")
+
+                lines.append("---")
+                lines.append("")
+
+        return "\n".join(lines)
 
     def get_tools_schema(self) -> List[Dict[str, Any]]:
         """

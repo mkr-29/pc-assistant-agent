@@ -74,6 +74,16 @@ async def test_process_telegram_commands():
     assert res_clear["success"] is True
     assert "cleared" in res_clear["response_text"]
 
+    # 6. /health command
+    res_health = await agent.process_telegram_message(make_msg("/health"))
+    assert res_health["success"] is True
+    assert "Agent Health" in res_health["response_text"]
+
+    # 7. /status command
+    res_status = await agent.process_telegram_message(make_msg("/status"))
+    assert res_status["success"] is True
+    assert "Agent Telemetry & Status" in res_status["response_text"]
+
     # 6. Multimedia message handlers
     photo_msg = {
         "message": {

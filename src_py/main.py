@@ -1,30 +1,33 @@
 """
 Main entry point for the PC Assistant Agent (Python/LangGraph implementation)
 """
+import argparse
 import asyncio
 import logging
 import os
 import signal
 import sys
-from typing import Dict, Any
+import time
+from typing import Dict, Any, Optional
 
 # Load environment variables
 from dotenv import load_dotenv
 load_dotenv()
 
 # Import our modules
-from config.env import load_config, validate_config
+from config.env import load_config, validate_config, validate_config_detailed, format_validation_report
 from memory.stores import ConversationHistoryStore, KnowledgeMemoryStore, UserProfileStore
 from agent.graph import agent_graph
 from telegram_integration.bot import TelegramBot
+from monitoring.metrics import metrics_collector
+from monitoring.health import HealthChecker, HealthServer
+from utils.logger import setup_logging, get_logger
 import tools
+from tools.registry import tool_registry
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Configure centralized structured logging (console + rotating file)
+setup_logging()
+logger = get_logger("main")
 
 # Global instances
 conversation_history_store = ConversationHistoryStore()
@@ -34,11 +37,14 @@ user_profile_store = UserProfileStore()
 class PCAssistantAgent:
     """Main PC Assistant Agent class"""
 
-    def __init__(self):
+    def __init__(self, port_override: Optional[int] = None, disable_health_server: bool = False):
         self.config = None
         self.agent_app = None
         self.telegram_bot = None
+        self.health_server: Optional[HealthServer] = None
         self.running = False
+        self.port_override = port_override
+        self.disable_health_server = disable_health_server
 
     async def initialize(self):
         """Initialize the agent"""
@@ -66,6 +72,15 @@ class PCAssistantAgent:
             else:
                 logger.warning("No Telegram bot token provided - Telegram functionality disabled")
 
+            # Initialize HTTP Health & Metrics monitoring server
+            if not self.disable_health_server:
+                listen_port = self.port_override or self.config.get('port', 8080)
+                self.health_server = HealthServer(
+                    host="0.0.0.0",
+                    port=listen_port,
+                    bot_instance=self.telegram_bot
+                )
+
             self.running = True
             logger.info("PC Assistant Agent initialized successfully")
 
@@ -83,6 +98,8 @@ class PCAssistantAgent:
         Returns:
             Dictionary with response data to send back to Telegram
         """
+        start_time = time.time()
+        chat_id = "unknown"
         try:
             # Extract message data
             message = telegram_data.get("message", {})
@@ -91,9 +108,49 @@ class PCAssistantAgent:
             username = message.get("from", {}).get("username", "unknown")
             text = message.get("text", "")
 
+            # 1. Health monitoring command
+            if text.startswith("/health"):
+                checker = HealthChecker()
+                h = checker.get_health_status(self.telegram_bot)
+                disk = h["checks"]["storage_capacity"]
+                lines = [
+                    f"🩺 <b>Agent Health: {h['status']}</b>",
+                    f"• Uptime: {h['uptime_seconds']}s",
+                    f"• Disk Space: {disk.get('detail', 'N/A')} ({disk.get('free_mb', 0)} MB free)",
+                    f"• Data Directory: {h['checks']['data_directory']['status']}",
+                    f"• Active LLMs: {', '.join(h['checks']['llm_providers'].get('configured_providers', []))}",
+                    f"• Telegram Bot: {h['checks']['telegram_bot']['detail']}"
+                ]
+                metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
+                return {
+                    "success": True,
+                    "response_text": "\n".join(lines),
+                    "chat_id": chat_id
+                }
+
+            # 2. Telemetry and metrics status command
+            elif text.startswith("/status") or text.startswith("/metrics"):
+                m = metrics_collector.get_metrics()
+                exec_data = m["executions"]
+                lines = [
+                    "📊 <b>Agent Telemetry & Status</b>",
+                    f"• Total Executions: {exec_data['total']} (Success: {exec_data['successful']}, Failed: {exec_data['failed']})",
+                    f"• Success Rate: {exec_data['success_rate_percent']}%",
+                    f"• Latency: avg {exec_data['latency_ms']['avg']} ms (last: {exec_data['latency_ms']['last']} ms)",
+                    f"• Process Memory RSS: {m['system'].get('process_memory_rss_mb', 'N/A')} MB",
+                    f"• Process CPU: {m['system'].get('process_cpu_percent', 'N/A')}%"
+                ]
+                metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
+                return {
+                    "success": True,
+                    "response_text": "\n".join(lines),
+                    "chat_id": chat_id
+                }
+
             # Handle special commands
-            if text.startswith("/new_convo"):
+            elif text.startswith("/new_convo"):
                 conversation_history_store.clearHistory(chat_id)
+                metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
                 return {
                     "success": True,
                     "response_text": "Conversation history cleared. Starting fresh!",
@@ -104,12 +161,14 @@ class PCAssistantAgent:
                 fact = text[10:].strip()  # Remove "/remember "
                 if fact:
                     knowledge_memory_store.addMemory(fact)
+                    metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
                     return {
                         "success": True,
                         "response_text": f"I'll remember that: {fact}",
                         "chat_id": chat_id
                     }
                 else:
+                    metrics_collector.record_execution(False, (time.time() - start_time) * 1000)
                     return {
                         "success": False,
                         "response_text": "Please specify what you'd like me to remember.",
@@ -123,6 +182,7 @@ class PCAssistantAgent:
                     response_text = f"I remember the following facts:\n\n{memories_text}"
                 else:
                     response_text = "I don't have any memories saved yet."
+                metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
                 return {
                     "success": True,
                     "response_text": response_text,
@@ -132,12 +192,14 @@ class PCAssistantAgent:
             elif text.startswith("/forget_memory "):
                 memory_id_str = text[15:].strip()
                 if not memory_id_str:
+                    metrics_collector.record_execution(False, (time.time() - start_time) * 1000)
                     return {
                         "success": False,
                         "response_text": "Please provide a valid memory ID to forget.",
                         "chat_id": chat_id
                     }
                 deleted = knowledge_memory_store.deleteMemory(memory_id_str)
+                metrics_collector.record_execution(deleted, (time.time() - start_time) * 1000)
                 if deleted:
                     return {
                         "success": True,
@@ -155,12 +217,14 @@ class PCAssistantAgent:
                 prefix_len = 17 if text.startswith("/search_memories ") else 8
                 query = text[prefix_len:].strip()
                 if not query:
+                    metrics_collector.record_execution(False, (time.time() - start_time) * 1000)
                     return {
                         "success": False,
                         "response_text": "Please specify a search query.",
                         "chat_id": chat_id
                     }
                 matches = knowledge_memory_store.searchMemories(query)
+                metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
                 if matches:
                     text_matches = "\n".join([f"• [{m.get('id', '')}] {m['fact']} (score: {m.get('relevance_score', 0):.2f})" for m in matches])
                     response_text = f"Memories matching '{query}':\n\n{text_matches}"
@@ -179,6 +243,7 @@ class PCAssistantAgent:
                     response_text = f"Here's what I know about you:\n\n{profile_text}"
                 else:
                     response_text = "I don't have any information about you yet. Use /remember <fact> to teach me things!"
+                metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
                 return {
                     "success": True,
                     "response_text": response_text,
@@ -187,7 +252,7 @@ class PCAssistantAgent:
 
             # Handle multimedia messages (simplified)
             elif "photo" in message and message["photo"]:
-                # In a full implementation, we would download and process the photo
+                metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
                 return {
                     "success": True,
                     "response_text": "I can see you've sent a photo! Photo processing is coming soon.",
@@ -195,7 +260,7 @@ class PCAssistantAgent:
                 }
 
             elif "voice" in message and message["voice"]:
-                # In a full implementation, we would transcribe the voice message
+                metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
                 return {
                     "success": True,
                     "response_text": "I can see you've sent a voice message! Voice transcription is coming soon.",
@@ -237,8 +302,11 @@ class PCAssistantAgent:
                 # Update conversation history
                 conversation_history_store.appendTurn(chat_id, text, agent_response)
 
+                is_success = not bool(final_state.get("error"))
+                metrics_collector.record_execution(is_success, (time.time() - start_time) * 1000)
+
                 return {
-                    "success": True,
+                    "success": is_success,
                     "response_text": agent_response,
                     "chat_id": chat_id,
                     "execution_details": {
@@ -249,6 +317,7 @@ class PCAssistantAgent:
                 }
 
             else:
+                metrics_collector.record_execution(False, (time.time() - start_time) * 1000)
                 return {
                     "success": False,
                     "response_text": "I didn't receive a message to process.",
@@ -257,15 +326,20 @@ class PCAssistantAgent:
 
         except Exception as e:
             logger.error(f"Error processing Telegram message: {e}")
+            metrics_collector.record_execution(False, (time.time() - start_time) * 1000)
             return {
                 "success": False,
                 "response_text": f"I encountered an error while processing your message: {str(e)}",
-                "chat_id": telegram_data.get("message", {}).get("chat", {}).get("id", "unknown")
+                "chat_id": telegram_data.get("message", {}).get("chat", {}).get("id", chat_id)
             }
 
     async def run(self):
         """Run the agent"""
         logger.info("Starting PC Assistant Agent")
+
+        # Start health and metrics HTTP server if available
+        if self.health_server:
+            await self.health_server.start()
 
         # Start Telegram bot if available
         if self.telegram_bot:
@@ -287,18 +361,49 @@ class PCAssistantAgent:
         logger.info("Stopping PC Assistant Agent")
         self.running = False
 
+        # Stop HTTP health server if running
+        if self.health_server:
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.create_task(self.health_server.stop())
+            except Exception:
+                pass
+
         # Stop Telegram bot if it exists
         if self.telegram_bot:
-            # Create a task to stop the bot asynchronously
-            asyncio.create_task(self.telegram_bot.stop())
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.create_task(self.telegram_bot.stop())
+            except Exception:
+                pass
 
 # Global agent instance
-agent_instance = PCAssistantAgent()
+agent_instance: Optional[PCAssistantAgent] = None
 
-async def main():
+async def main(args: Optional[argparse.Namespace] = None):
     """Main entry point"""
+    global agent_instance
     try:
+        # Configuration check flag
+        if args and args.check_config:
+            cfg = load_config()
+            report = validate_config_detailed(cfg, require_telegram=args.require_telegram)
+            print(format_validation_report(report))
+            sys.exit(0 if report["is_valid"] else 1)
+
+        # Export tools catalog flag
+        if args and args.export_tools:
+            cat = tool_registry.generate_markdown_catalog()
+            print(cat)
+            sys.exit(0)
+
         # Initialize the agent
+        agent_instance = PCAssistantAgent(
+            port_override=args.port if args else None,
+            disable_health_server=args.no_server if args else False
+        )
         await agent_instance.initialize()
 
         # Run the agent
@@ -309,17 +414,28 @@ async def main():
     except Exception as e:
         logger.error(f"Error in main: {e}")
     finally:
-        agent_instance.stop()
+        if agent_instance:
+            agent_instance.stop()
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="PC Assistant Agent Runtime")
+    parser.add_argument("--check-config", action="store_true", help="Validate configuration and environment variables, then exit")
+    parser.add_argument("--require-telegram", action="store_true", help="Enforce Telegram credentials when checking configuration")
+    parser.add_argument("--export-tools", action="store_true", help="Print Markdown catalog of all registered tools and exit")
+    parser.add_argument("--port", type=int, default=None, help="HTTP port for health and metrics server (overrides PORT env)")
+    parser.add_argument("--no-server", action="store_true", help="Disable the background HTTP health and metrics server")
+
+    cli_args = parser.parse_args()
+
     # Handle graceful shutdown
     def signal_handler(sig, frame):
         logger.info("Received shutdown signal")
-        agent_instance.stop()
+        if agent_instance:
+            agent_instance.stop()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
     # Run the main function
-    asyncio.run(main())
+    asyncio.run(main(cli_args))

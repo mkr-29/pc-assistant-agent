@@ -121,11 +121,28 @@ This document outlines all issues identified during the complete audit of the pc
      - SSRF Prevention: `validate_url` blocks local, loopback (127.0.0.1), private RFC1918 networks, and cloud instance metadata services (`169.254.169.254`, `metadata.google.internal`).
      - Integrated validation guards directly into `run_command`, filesystem tools, and web fetching tools.
 
-### Medium Priority
-1. Add Docker support and deployment documentation
-2. Enhance logging and monitoring capabilities
-3. Improve tool documentation and examples
-4. Add configuration validation with helpful error messages
+### Medium Priority - COMPLETED
+1. [x] **Add Docker support and deployment documentation**:
+   - Containerization: Created multi-stage, non-root `Dockerfile` with persistent volume declarations (`/app/.data`, `/app/logs`) and native HTTP `HEALTHCHECK` probe against `/health`.
+   - Orchestration: Created `docker-compose.yml` with port mapping (`8080`), persistent volume mounts, and automated health polling.
+   - Build optimization: Added `.dockerignore` to exclude local caches, virtual environments, tests, and sensitive credentials.
+   - Deployment Handbook: Created comprehensive [DEPLOYMENT.md](file:///Users/mkr-27/Desktop/MY/MKR/pc-assistant-agent/DEPLOYMENT.md) covering containerized Docker Compose setups, local virtualenv execution, Linux systemd service units (`pc-assistant.service`), macOS LaunchAgent configurations (`com.pcassistant.agent.plist`), and automated backup routines.
+2. [x] **Enhance logging and monitoring capabilities**:
+   - Metrics Engine (`src_py/monitoring/metrics.py`): Implemented `MetricsCollector` tracking uptime, total executions, success rates, latency distributions (last/avg/min/max), tool call counters, LLM provider statistics, and system memory/CPU usage via `psutil`. Added Prometheus scraper export (`/metrics?format=prometheus`).
+   - Health Probes & Server (`src_py/monitoring/health.py`): Implemented `HealthChecker` inspecting disk space, data directory writeability, and active LLM providers. Built asynchronous `HealthServer` serving `/health`, `/metrics`, and `/status`.
+   - Rotating Log Files (`src_py/utils/logger.py`): Upgraded centralized logger with `RotatingFileHandler` writing to `logs/agent.log` (10MB max, 5 backups), configurable log levels (`LOG_LEVEL`), and optional JSON structured logging (`LOG_FORMAT=json`).
+   - In-Chat Diagnostics (`src_py/main.py`): Exposed `/health` and `/status` commands in Telegram bot for immediate runtime visibility.
+3. [x] **Improve tool documentation and examples**:
+   - Created exhaustive tool catalog in [TOOL_CATALOG.md](file:///Users/mkr-27/Desktop/MY/MKR/pc-assistant-agent/TOOL_CATALOG.md) (and [docs/TOOL_CATALOG.md](file:///Users/mkr-27/Desktop/MY/MKR/pc-assistant-agent/docs/TOOL_CATALOG.md)) detailing all 37 registered tools across 6 categories (Filesystem, Terminal, Web, macOS System, Memory, Telegram) with input parameters, types, defaults, return envelopes, and security guardrails.
+   - Dynamic Catalog Generator: Added `generate_markdown_catalog()` method to `ToolRegistry` (`src_py/tools/registry.py`) and `--export-tools` CLI flag in `main.py` to auto-generate markdown documentation on demand.
+4. [x] **Add configuration validation with helpful error messages**:
+   - Advanced Configuration Validator (`validate_config_detailed` in `src_py/config/env.py`):
+     - Compares `.env` against `.env.example`.
+     - Identifies unreplaced placeholder values (e.g., `your_gemini_api_key_here`).
+     - Detects common typos in variable names (e.g. `GEMINI_KEY` vs `GEMINI_API_KEY`).
+     - Validates port numbers (1-65535) and URL formatting (`AZURE_OPENAI_ENDPOINT`).
+     - Provides actionable remediation guidance with direct developer portal links for Gemini, Groq, Azure, and Telegram.
+   - CLI Dry-Run: Added `python src_py/config/env.py` and `python src_py/main.py --check-config` to inspect and report environment health before launching.
 
 ### Low Priority
 1. Implement advanced memory features (vector storage, semantic search)

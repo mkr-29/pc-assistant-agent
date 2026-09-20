@@ -1,0 +1,30 @@
+services:
+  pc-assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pc-assistant-agent
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      # Persist conversation histories, knowledge base, and user profiles across container rebuilds
+      - ./.data:/app/.data
+      # Persist structured application logs
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PORT=8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

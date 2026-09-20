@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# Environment and sensitive keys
+.env
+*.pem
+*.key
+id_rsa*
+credentials.json
+
+# Python caches and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Data and logs (mounted via volumes)
+.data/
+logs/
+
+# IDE / OS specific files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary directories
+tmp/
+temp/
