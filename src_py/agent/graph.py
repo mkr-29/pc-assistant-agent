@@ -1,65 +1,92 @@
 """
-Agent graph construction using LangGraph concepts
+Agent graph construction using LangGraph concepts and robust conditional edges.
 """
+import logging
 from typing import Dict, Any
 from langgraph.graph import StateGraph, END
 from agent.state import AgentState
 from agent.nodes import planner_node, agent_node, fallback_node, reflect_node
-import logging
 
 logger = logging.getLogger(__name__)
 
+def route_after_planner(state: Dict[str, Any]) -> str:
+    """Route after planner: fallback on error, otherwise proceed to agent"""
+    if state.get("error"):
+        return "fallback"
+    return "agent"
+
+def route_after_agent(state: Dict[str, Any]) -> str:
+    """Route after agent: fallback on error, loop if more steps needed, otherwise reflect"""
+    if state.get("error"):
+        return "fallback"
+    if state.get("needs_more_steps", False):
+        return "agent"
+    return "reflect"
+
+def route_after_reflect(state: Dict[str, Any]) -> str:
+    """Route after reflect: fallback on error, otherwise end workflow"""
+    if state.get("error"):
+        return "fallback"
+    return "end"
+
 def create_agent_graph() -> StateGraph:
     """
-    Create the agent workflow graph.
+    Create and compile the agent workflow graph with proper conditional transitions.
 
     Returns:
-        Compiled LangGraph state graph
+        Compiled LangGraph state graph application
     """
-    logger.info("Creating agent workflow graph")
+    logger.info("Building agent workflow state graph")
 
-    # Create the state graph
     workflow = StateGraph(AgentState)
 
-    # Add nodes
+    # Register nodes
     workflow.add_node("planner", planner_node)
     workflow.add_node("agent", agent_node)
-    workflow.add_node("fallback", fallback_node)
     workflow.add_node("reflect", reflect_node)
+    workflow.add_node("fallback", fallback_node)
 
-    # Set entry point
+    # Workflow entry point
     workflow.set_entry_point("planner")
 
-    # Add edges
-    workflow.add_edge("planner", "agent")
-    workflow.add_edge("agent", "reflect")
+    # Conditional routing from planner
     workflow.add_conditional_edges(
-        "reflect",
-        lambda state: "agent" if state.get("needs_more_steps", False) else "end",
+        "planner",
+        route_after_planner,
         {
             "agent": "agent",
-            "end": END
+            "fallback": "fallback"
         }
     )
 
-    # Add fallback edges for error handling
-    workflow.add_edge("planner", "fallback")
-    workflow.add_edge("agent", "fallback")
-    workflow.add_edge("reflect", "fallback")
+    # Conditional routing from agent
     workflow.add_conditional_edges(
-        "fallback",
-        lambda state: END if state.get("is_complete", False) else "agent",
+        "agent",
+        route_after_agent,
         {
             "agent": "agent",
-            "end": END
+            "reflect": "reflect",
+            "fallback": "fallback"
         }
     )
+
+    # Conditional routing from reflect
+    workflow.add_conditional_edges(
+        "reflect",
+        route_after_reflect,
+        {
+            "end": END,
+            "fallback": "fallback"
+        }
+    )
+
+    # Fallback node always transitions to END
+    workflow.add_edge("fallback", END)
 
     # Compile the graph
     app = workflow.compile()
-
-    logger.info("Agent workflow graph created and compiled")
+    logger.info("Agent workflow graph successfully compiled")
     return app
 
-# Create a default agent instance
+# Default compiled graph instance
 agent_graph = create_agent_graph()

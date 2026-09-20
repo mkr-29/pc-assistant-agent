@@ -17,7 +17,7 @@ from config.env import load_config, validate_config
 from memory.stores import ConversationHistoryStore, KnowledgeMemoryStore, UserProfileStore
 from agent.graph import agent_graph
 from telegram_integration.bot import TelegramBot
-import logging
+import tools
 
 # Configure logging
 logging.basicConfig(
@@ -130,20 +130,47 @@ class PCAssistantAgent:
                 }
 
             elif text.startswith("/forget_memory "):
-                try:
-                    memory_id = int(text[15:].strip())  # Remove "/forget_memory "
-                    knowledge_memory_store.deleteMemory(memory_id)
-                    return {
-                        "success": True,
-                        "response_text": f"Memory {memory_id} has been forgotten.",
-                        "chat_id": chat_id
-                    }
-                except ValueError:
+                memory_id_str = text[15:].strip()
+                if not memory_id_str:
                     return {
                         "success": False,
                         "response_text": "Please provide a valid memory ID to forget.",
                         "chat_id": chat_id
                     }
+                deleted = knowledge_memory_store.deleteMemory(memory_id_str)
+                if deleted:
+                    return {
+                        "success": True,
+                        "response_text": f"Memory '{memory_id_str}' has been forgotten.",
+                        "chat_id": chat_id
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "response_text": f"Memory '{memory_id_str}' not found.",
+                        "chat_id": chat_id
+                    }
+
+            elif text.startswith("/search_memories ") or text.startswith("/search "):
+                prefix_len = 17 if text.startswith("/search_memories ") else 8
+                query = text[prefix_len:].strip()
+                if not query:
+                    return {
+                        "success": False,
+                        "response_text": "Please specify a search query.",
+                        "chat_id": chat_id
+                    }
+                matches = knowledge_memory_store.searchMemories(query)
+                if matches:
+                    text_matches = "\n".join([f"• [{m.get('id', '')}] {m['fact']} (score: {m.get('relevance_score', 0):.2f})" for m in matches])
+                    response_text = f"Memories matching '{query}':\n\n{text_matches}"
+                else:
+                    response_text = f"No memories found matching '{query}'."
+                return {
+                    "success": True,
+                    "response_text": response_text,
+                    "chat_id": chat_id
+                }
 
             elif text.startswith("/profile") or text.startswith("/whoami"):
                 profile = user_profile_store.getUserProfile()
@@ -159,7 +186,7 @@ class PCAssistantAgent:
                 }
 
             # Handle multimedia messages (simplified)
-            elif "photo" in message:
+            elif "photo" in message and message["photo"]:
                 # In a full implementation, we would download and process the photo
                 return {
                     "success": True,
@@ -167,7 +194,7 @@ class PCAssistantAgent:
                     "chat_id": chat_id
                 }
 
-            elif "voice" in message:
+            elif "voice" in message and message["voice"]:
                 # In a full implementation, we would transcribe the voice message
                 return {
                     "success": True,

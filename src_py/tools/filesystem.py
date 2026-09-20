@@ -1,11 +1,22 @@
 """
-Filesystem tools for the PC Assistant Agent
+Filesystem tools for the PC Assistant Agent with safe path resolution,
+sensitive file protection, and standardized responses.
 """
 import os
 import glob
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-from tools.registry import register_tool
+
+try:
+    from utils.paths import resolve_path
+    from utils.response import success_response, error_response
+    from security.validator import validate_path
+    from tools.registry import register_tool
+except ImportError:
+    from src_py.utils.paths import resolve_path
+    from src_py.utils.response import success_response, error_response
+    from src_py.security.validator import validate_path
+    from src_py.tools.registry import register_tool
 
 @register_tool("read_file", "filesystem")
 def read_file(file_path: str, offset: int = 0, limit: Optional[int] = None) -> Dict[str, Any]:
@@ -13,58 +24,54 @@ def read_file(file_path: str, offset: int = 0, limit: Optional[int] = None) -> D
     Read a file from the local filesystem.
 
     Args:
-        file_path: Absolute path to the file to read
+        file_path: Path to the file to read (supports ~, absolute, or relative paths)
         offset: Line number to start reading from (0-indexed)
         limit: Number of lines to read (None for all lines from offset)
 
     Returns:
-        Dictionary with 'content' (string) and 'total_lines' (int)
+        Standardized dictionary with content, total_lines, and success status
     """
     try:
-        # Ensure we're working with an absolute path
-        if not os.path.isabs(file_path):
-            # In a real implementation, we would resolve relative to target project path
-            file_path = os.path.abspath(file_path)
+        # Validate path
+        val = validate_path(file_path, allow_sensitive=False)
+        if not val["is_safe"]:
+            return error_response(val["reason"], code="SECURITY_VIOLATION", file_path=file_path)
 
-        # Check if file exists
-        if not os.path.exists(file_path):
-            return {
-                "error": f"File not found: {file_path}",
-                "content": "",
-                "total_lines": 0
-            }
+        resolved_path = val["resolved_path"]
 
-        # Read the file
-        with open(file_path, 'r', encoding='utf-8') as f:
+        if not os.path.exists(resolved_path):
+            return error_response(f"File not found: {resolved_path}", code="FILE_NOT_FOUND", file_path=resolved_path)
+
+        if os.path.isdir(resolved_path):
+            return error_response(f"Path is a directory, not a file: {resolved_path}", code="IS_DIRECTORY", file_path=resolved_path)
+
+        with open(resolved_path, 'r', encoding='utf-8', errors='replace') as f:
             lines = f.readlines()
 
         total_lines = len(lines)
-
-        # Apply offset and limit
         if offset < 0:
             offset = 0
         if offset >= total_lines:
-            return {
+            return success_response(data={
                 "content": "",
-                "total_lines": total_lines
-            }
+                "total_lines": total_lines,
+                "lines_returned": 0,
+                "file_path": resolved_path
+            })
 
         end_line = offset + limit if limit is not None else total_lines
         selected_lines = lines[offset:end_line]
         content = ''.join(selected_lines)
 
-        return {
+        return success_response(data={
             "content": content,
             "total_lines": total_lines,
-            "lines_returned": len(selected_lines)
-        }
+            "lines_returned": len(selected_lines),
+            "file_path": resolved_path
+        })
 
     except Exception as e:
-        return {
-            "error": f"Error reading file: {str(e)}",
-            "content": "",
-            "total_lines": 0
-        }
+        return error_response(f"Error reading file: {str(e)}", code="READ_ERROR", file_path=file_path)
 
 @register_tool("write_file", "filesystem")
 def write_file(file_path: str, content: str) -> Dict[str, Any]:
@@ -72,94 +79,77 @@ def write_file(file_path: str, content: str) -> Dict[str, Any]:
     Write content to a file, overwriting if it exists.
 
     Args:
-        file_path: Absolute path to the file to write
+        file_path: Path to the file to write (supports ~, absolute, or relative paths)
         content: Content to write to the file
 
     Returns:
-        Dictionary with success status
+        Standardized dictionary with success status
     """
     try:
-        # Ensure we're working with an absolute path
-        if not os.path.isabs(file_path):
-            file_path = os.path.abspath(file_path)
+        # Validate path: block writing to sensitive secret files
+        val = validate_path(file_path, allow_sensitive=False)
+        if not val["is_safe"]:
+            return error_response(val["reason"], code="SECURITY_VIOLATION", file_path=file_path)
 
-        # Create directory if it doesn't exist
-        directory = os.path.dirname(file_path)
+        resolved_path = val["resolved_path"]
+
+        directory = os.path.dirname(resolved_path)
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
 
-        # Write the file
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(resolved_path, 'w', encoding='utf-8') as f:
             f.write(content)
 
-        return {
-            "success": True,
-            "message": f"Successfully wrote to {file_path}",
-            "file_path": file_path,
-            "bytes_written": len(content.encode('utf-8'))
-        }
+        return success_response(
+            message=f"Successfully wrote to {resolved_path}",
+            data={
+                "file_path": resolved_path,
+                "bytes_written": len(content.encode('utf-8'))
+            }
+        )
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": f"Error writing file: {str(e)}",
-            "file_path": file_path
-        }
+        return error_response(f"Error writing file: {str(e)}", code="WRITE_ERROR", file_path=file_path)
 
 @register_tool("list_directory", "filesystem")
-def list_directory(directory_path: str) -> Dict[str, Any]:
+def list_directory(directory_path: str = ".") -> Dict[str, Any]:
     """
     List contents of a directory.
 
     Args:
-        directory_path: Absolute path to the directory to list
+        directory_path: Path to the directory to list (supports ~, absolute, or relative paths)
 
     Returns:
-        Dictionary with 'files' and 'directories' lists
+        Standardized dictionary with 'files' and 'directories' lists
     """
     try:
-        # Ensure we're working with an absolute path
-        if not os.path.isabs(directory_path):
-            directory_path = os.path.abspath(directory_path)
+        resolved_path = resolve_path(directory_path)
 
-        # Check if directory exists
-        if not os.path.exists(directory_path):
-            return {
-                "error": f"Directory not found: {directory_path}",
-                "files": [],
-                "directories": []
-            }
+        if not os.path.exists(resolved_path):
+            return error_response(f"Directory not found: {resolved_path}", code="DIRECTORY_NOT_FOUND")
 
-        if not os.path.isdir(directory_path):
-            return {
-                "error": f"Path is not a directory: {directory_path}",
-                "files": [],
-                "directories": []
-            }
+        if not os.path.isdir(resolved_path):
+            return error_response(f"Path is not a directory: {resolved_path}", code="NOT_A_DIRECTORY")
 
-        # List contents
         files = []
         directories = []
 
-        for item in os.listdir(directory_path):
-            full_path = os.path.join(directory_path, item)
+        for item in os.listdir(resolved_path):
+            full_path = os.path.join(resolved_path, item)
             if os.path.isfile(full_path):
                 files.append(item)
             elif os.path.isdir(full_path):
                 directories.append(item)
 
-        return {
+        return success_response(data={
             "files": sorted(files),
             "directories": sorted(directories),
-            "path": directory_path
-        }
+            "path": resolved_path,
+            "total_items": len(files) + len(directories)
+        })
 
     except Exception as e:
-        return {
-            "error": f"Error listing directory: {str(e)}",
-            "files": [],
-            "directories": []
-        }
+        return error_response(f"Error listing directory: {str(e)}", code="LIST_DIR_ERROR")
 
 @register_tool("glob_search", "filesystem")
 def glob_search(pattern: str, root_dir: str = ".") -> Dict[str, Any]:
@@ -171,48 +161,34 @@ def glob_search(pattern: str, root_dir: str = ".") -> Dict[str, Any]:
         root_dir: Root directory to search in (default: current directory)
 
     Returns:
-        Dictionary with matching file paths
+        Standardized dictionary with matching file paths
     """
     try:
-        # Ensure we're working with an absolute path for root
-        if not os.path.isabs(root_dir):
-            root_dir = os.path.abspath(root_dir)
+        resolved_root = resolve_path(root_dir)
 
-        # Check if root directory exists
-        if not os.path.exists(root_dir):
-            return {
-                "error": f"Root directory not found: {root_dir}",
-                "matches": []
-            }
+        if not os.path.exists(resolved_root):
+            return error_response(f"Root directory not found: {resolved_root}", code="ROOT_NOT_FOUND")
 
-        # Construct the full pattern
-        full_pattern = os.path.join(root_dir, pattern)
-
-        # Perform glob search
+        full_pattern = os.path.join(resolved_root, pattern)
         matches = glob.glob(full_pattern, recursive=True)
 
-        # Convert to relative paths for cleaner output
         relative_matches = []
         for match in matches:
-            if os.path.commonpath([match, root_dir]) == root_dir:
-                # Make relative to root_dir
-                relative_path = os.path.relpath(match, root_dir)
+            if os.path.commonpath([match, resolved_root]) == resolved_root:
+                relative_path = os.path.relpath(match, resolved_root)
                 relative_matches.append(relative_path)
             else:
                 relative_matches.append(match)
 
-        return {
+        return success_response(data={
             "matches": sorted(relative_matches),
             "pattern": pattern,
-            "root_dir": root_dir,
+            "root_dir": resolved_root,
             "count": len(relative_matches)
-        }
+        })
 
     except Exception as e:
-        return {
-            "error": f"Error performing glob search: {str(e)}",
-            "matches": []
-        }
+        return error_response(f"Error performing glob search: {str(e)}", code="GLOB_ERROR")
 
 @register_tool("file_exists", "filesystem")
 def file_exists(file_path: str) -> Dict[str, Any]:
@@ -220,30 +196,23 @@ def file_exists(file_path: str) -> Dict[str, Any]:
     Check if a file exists.
 
     Args:
-        file_path: Absolute path to the file to check
+        file_path: Path to the file to check
 
     Returns:
-        Dictionary with existence status
+        Standardized dictionary with existence status
     """
     try:
-        # Ensure we're working with an absolute path
-        if not os.path.isabs(file_path):
-            file_path = os.path.abspath(file_path)
+        resolved_path = resolve_path(file_path)
+        exists = os.path.isfile(resolved_path)
 
-        exists = os.path.isfile(file_path)
-
-        return {
+        return success_response(data={
             "exists": exists,
-            "file_path": file_path,
+            "file_path": resolved_path,
             "type": "file" if exists else "none"
-        }
+        })
 
     except Exception as e:
-        return {
-            "error": f"Error checking file existence: {str(e)}",
-            "exists": False,
-            "file_path": file_path
-        }
+        return error_response(f"Error checking file existence: {str(e)}", code="EXISTS_ERROR", file_path=file_path)
 
 @register_tool("directory_exists", "filesystem")
 def directory_exists(directory_path: str) -> Dict[str, Any]:
@@ -251,27 +220,20 @@ def directory_exists(directory_path: str) -> Dict[str, Any]:
     Check if a directory exists.
 
     Args:
-        directory_path: Absolute path to the directory to check
+        directory_path: Path to the directory to check
 
     Returns:
-        Dictionary with existence status
+        Standardized dictionary with existence status
     """
     try:
-        # Ensure we're working with an absolute path
-        if not os.path.isabs(directory_path):
-            directory_path = os.path.abspath(directory_path)
+        resolved_path = resolve_path(directory_path)
+        exists = os.path.isdir(resolved_path)
 
-        exists = os.path.isdir(directory_path)
-
-        return {
+        return success_response(data={
             "exists": exists,
-            "directory_path": directory_path,
+            "directory_path": resolved_path,
             "type": "directory" if exists else "none"
-        }
+        })
 
     except Exception as e:
-        return {
-            "error": f"Error checking directory existence: {str(e)}",
-            "exists": False,
-            "directory_path": directory_path
-        }
+        return error_response(f"Error checking directory existence: {str(e)}", code="DIR_EXISTS_ERROR", directory_path=directory_path)

@@ -64,6 +64,22 @@ Thumbs.db
 *.jar
 *.class
 *.py[cod]
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python Test & Cache
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
 
 # Test Reports
 TEST*.xml

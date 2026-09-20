@@ -1,39 +1,33 @@
 """
-Test for the LangGraph agent implementation
+Test for the LangGraph agent graph compilation and execution.
 """
+import pytest
 import asyncio
 import os
 import sys
+from unittest.mock import AsyncMock, patch
 
-# Add the current directory to the path so we can import src_py modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 from agent.graph import agent_graph
 from agent.state import AgentState
 
-async def test_agent_initialization():
-    """Test that the agent graph can be initialized"""
-    print("Testing agent initialization...")
-
-    # Check that the agent graph exists
+def test_agent_initialization():
+    """Test that the agent graph compiles and exists"""
     assert agent_graph is not None
-    print("✓ Agent graph initialized")
 
-    return True
-
-async def test_agent_invoke():
-    """Test that the agent can be invoked with a simple state"""
-    print("Testing agent invocation...")
-
-    # Prepare initial state
+@pytest.mark.asyncio
+async def test_agent_invoke_structure():
+    """Test that the agent graph executes end-to-end through LangGraph ainvoke"""
     initial_state = {
-        "user_prompt": "Hello, how are you?",
-        "chat_id": "test123",
+        "user_prompt": "List files in the working directory",
+        "chat_id": "test_agent_user",
         "conversation_history": [],
         "knowledge_memory": [],
         "user_profile": {},
         "current_plan": "",
         "plan_step": 0,
+        "max_steps": 4,
         "execution_results": [],
         "tools_used": [],
         "needs_more_steps": True,
@@ -44,50 +38,39 @@ async def test_agent_invoke():
         "timestamp": ""
     }
 
-    try:
-        # Invoke the agent (this will fail due to missing LLM configuration, but we can check if it gets past the planner)
-        # For now, we'll just test that the graph structure is correct
-        print("✓ Agent graph structure is valid")
-        return True
-    except Exception as e:
-        # Expected to fail due to missing API keys, but we can still check if it got past certain points
-        print(f"Agent invocation failed as expected (missing API keys): {e}")
-        # This is okay for now - we're mainly testing that the graph is structured correctly
-        return True
+    with patch("agent.nodes.LLMFallbackFactory.generate_text_with_fallback", new_callable=AsyncMock) as mock_gen, \
+         patch("agent.nodes.LLMFallbackFactory.generate_text_with_tools_fallback", new_callable=AsyncMock) as mock_tool_call:
 
-async def main():
-    """Run all agent tests"""
-    print("Running agent tests...\n")
+        mock_gen.side_effect = [
+            "1. List directory contents",
+            "Found project files including README.md and src_py."
+        ]
 
-    tests = [
-        test_agent_initialization,
-        test_agent_invoke
-    ]
+        mock_tool_call.return_value = {
+            "text": "Listing files",
+            "tool_calls": [
+                {
+                    "id": "c1",
+                    "name": "list_directory",
+                    "arguments": {"directory_path": "."}
+                }
+            ]
+        }
 
-    passed = 0
-    failed = 0
+        final_state = await agent_graph.ainvoke(initial_state)
 
-    for test in tests:
-        try:
-            result = await test()
-            if result:
-                passed += 1
-            else:
-                failed += 1
-                print(f"✗ {test.__name__} returned False")
-        except Exception as e:
-            failed += 1
-            print(f"✗ {test.__name__} failed with error: {e}")
-
-    print(f"\nAgent test results: {passed} passed, {failed} failed")
-
-    if failed == 0:
-        print("🎉 All agent tests passed!")
-        return True
-    else:
-        print("❌ Some agent tests failed.")
-        return False
+        assert final_state["is_complete"] is True
+        assert "list_directory" in final_state["tools_used"]
+        assert len(final_state["execution_results"]) >= 1
+        assert "Found project files" in final_state["reflection"]
 
 if __name__ == "__main__":
-    success = asyncio.run(main())
-    exit(0 if success else 1)
+    async def main():
+        print("Running agent tests...\n")
+        test_agent_initialization()
+        print("✓ Agent graph initialized")
+        await test_agent_invoke_structure()
+        print("✓ Agent invocation verified")
+        print("\n🎉 All agent tests passed!")
+
+    asyncio.run(main())

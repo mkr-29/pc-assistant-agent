@@ -1,223 +1,345 @@
 """
-Agent nodes for the PC Assistant Agent using LangGraph concepts
+LangGraph agent nodes for the PC Assistant Agent.
+Implements real step-by-step plan execution with dynamic tool calling,
+reflection synthesis, and fallback error handling.
 """
-from typing import Dict, Any
+import asyncio
+import json
+import logging
+import re
+from typing import Dict, Any, List, Optional
 from langchain_core.runnables import RunnableConfig
+
 from config.env import load_config, validate_config
 from llm.factory import LLMFallbackFactory
-import logging
+from tools.registry import tool_registry
 
 logger = logging.getLogger(__name__)
 
-def planner_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str, Any]:
-    """
-    Planner node: Creates a step-by-step plan to accomplish the user's goal.
+def _get_tools_summary() -> str:
+    """Generate a readable list of registered tools and their descriptions"""
+    categories = tool_registry.list_tools_by_category()
+    summary_lines = []
+    for cat, tools in categories.items():
+        summary_lines.append(f"Category: {cat}")
+        for t in tools:
+            desc = tool_registry.get_tool_description(t).split("\n")[0]
+            summary_lines.append(f"  - {t}: {desc}")
+    return "\n".join(summary_lines)
 
-    Args:
-        state: Current agent state
-        config: LangGraph runtime configuration
+def _parse_plan_steps(plan_text: str) -> List[str]:
+    """Parse numbered or bulleted steps from LLM plan text"""
+    steps = []
+    lines = plan_text.strip().split("\n")
+    for line in lines:
+        cleaned = line.strip()
+        # Match lines like "1. Do something", "Step 1: Do something", "1) Do something"
+        match = re.match(r'^(?:step\s*)?(\d+)[\.\)\:]\s*(.+)$', cleaned, re.IGNORECASE)
+        if match:
+            step_desc = match.group(2).strip()
+            if step_desc and not step_desc.lower().startswith("expected outcome"):
+                steps.append(step_desc)
 
-    Returns:
-        Updated state with plan
+    # Fallback: check markdown bullet points if no numbered steps found
+    if not steps:
+        for line in lines:
+            cleaned = line.strip()
+            if cleaned.startswith(("- ", "* ")) and len(cleaned) > 4:
+                steps.append(cleaned[2:].strip())
+
+    return steps
+
+async def planner_node(state: Dict[str, Any], config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
     """
-    logger.info("Planner node: Creating execution plan")
+    Planner node: Generates an actionable step-by-step plan based on user prompt and available tools.
+    """
+    logger.info("Planner node: Formulating execution plan")
+
+    user_prompt = state.get("user_prompt", "").strip()
+    if not user_prompt:
+        return {
+            **state,
+            "error": "No user prompt provided",
+            "is_complete": True,
+            "needs_more_steps": False
+        }
 
     try:
-        # Extract state variables
-        user_prompt = state.get("user_prompt", "")
-        _chat_id = state.get("chat_id", "")  # Currently unused but may be needed in future
-
-        if not user_prompt:
-            return {
-                **state,
-                "error": "No user prompt provided",
-                "is_complete": True
-            }
-
-        # Load configuration and initialize LLM factory
         app_config = load_config()
-        validate_config(app_config)
+        # Telegram token not strictly required during headless graph execution
+        validate_config(app_config, require_telegram=False)
         llm_factory = LLMFallbackFactory(app_config)
 
-        # Create planning prompt
-        planning_prompt = f"""
-        Create a detailed, step-by-step implementation plan to accomplish the following task: "{user_prompt}".
-        Focus on what tools to use, what commands to run, what files to read/write, and state the expected outcomes.
-        Return ONLY the plan in clear markdown formatting.
-        """
+        tools_summary = _get_tools_summary()
+        knowledge = state.get("knowledge_memory", [])
+        profile = state.get("user_profile", {})
 
-        # Generate plan using LLM with fallback
-        plan = llm_factory.generate_text_with_fallback(
+        context_parts = []
+        if profile:
+            context_parts.append(f"User Profile: {json.dumps(profile)}")
+        if knowledge:
+            facts = [k.get("fact", "") for k in knowledge if k.get("fact")]
+            context_parts.append(f"Known Facts: {'; '.join(facts)}")
+
+        context_str = "\n".join(context_parts)
+
+        planning_prompt = f"""You are an intelligent PC Assistant Agent planner.
+Create a concise, step-by-step action plan to accomplish the user's request:
+"{user_prompt}"
+
+{context_str}
+
+Available Tools:
+{tools_summary}
+
+Requirements:
+1. Break the task into 1 to 5 concrete, ordered steps.
+2. Number each step clearly (e.g., "1. Inspect current directory", "2. Read the file").
+3. Only use steps that can be accomplished with available tools or direct reasoning.
+4. Keep the steps short and specific.
+"""
+
+        plan_text = await llm_factory.generate_text_with_fallback(
             prompt=planning_prompt,
-            system_instruction="You are an expert software engineer and system assistant. Create clear, actionable plans.",
-            temperature=0.3,  # Lower temperature for more focused planning
-            max_tokens=2000
+            system_instruction="You are a system planner. Generate only clear, numbered execution steps.",
+            temperature=0.2,
+            max_tokens=1500
         )
 
-        logger.info(f"Planner created plan: {plan[:100]}...")
+        steps = _parse_plan_steps(plan_text)
+        if not steps:
+            # If no numbered steps could be parsed, treat the user prompt as a single step
+            steps = [f"Execute: {user_prompt}"]
+
+        logger.info(f"Planner formulated {len(steps)} steps: {steps}")
 
         return {
             **state,
-            "current_plan": plan,
+            "current_plan": plan_text,
+            "plan_steps": steps,
             "plan_step": 0,
+            "max_steps": state.get("max_steps") or max(len(steps) + 2, 8),
+            "execution_results": [],
+            "tools_used": [],
+            "needs_more_steps": len(steps) > 0,
+            "is_complete": False,
+            "error": None
+        }
+
+    except Exception as e:
+        logger.error(f"Error in planner_node: {e}", exc_info=True)
+        # Fallback to direct single step on error rather than aborting entirely
+        return {
+            **state,
+            "current_plan": f"Direct execution for: {user_prompt}",
+            "plan_steps": [f"Fulfill request: {user_prompt}"],
+            "plan_step": 0,
+            "max_steps": 5,
             "execution_results": [],
             "tools_used": [],
             "needs_more_steps": True,
+            "is_complete": False,
+            "error": None
+        }
+
+async def agent_node(state: Dict[str, Any], config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
+    """
+    Agent node: Executes the current plan step by dynamically selecting and executing tools.
+    """
+    plan_step = state.get("plan_step", 0)
+    plan_steps = state.get("plan_steps", [])
+    max_steps = state.get("max_steps", 10)
+    execution_results = list(state.get("execution_results", []))
+    tools_used = list(state.get("tools_used", []))
+    user_prompt = state.get("user_prompt", "")
+
+    logger.info(f"Agent node: Executing step {plan_step + 1}/{len(plan_steps)}")
+
+    if plan_step >= len(plan_steps) or plan_step >= max_steps:
+        logger.info("All plan steps or max steps completed. Proceeding to reflection.")
+        return {
+            **state,
+            "needs_more_steps": False,
             "is_complete": False
         }
 
-    except Exception as e:
-        logger.error(f"Error in planner node: {e}")
-        return {
-            **state,
-            "error": f"Planning failed: {str(e)}",
-            "is_complete": True
-        }
-
-def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str, Any]:
-    """
-    Agent node: Executes the plan step by step using available tools.
-
-    Args:
-        state: Current agent state
-        config: LangGraph runtime configuration
-
-    Returns:
-        Updated state with execution results
-    """
-    logger.info(f"Agent node: Executing step {state.get('plan_step', 0)}")
+    current_step_desc = plan_steps[plan_step]
 
     try:
-        # Extract state variables
-        current_plan = state.get("current_plan", "")
-        plan_step = state.get("plan_step", 0)
-        execution_results = state.get("execution_results", [])
-        tools_used = state.get("tools_used", [])
+        app_config = load_config()
+        llm_factory = LLMFallbackFactory(app_config)
 
-        if not current_plan:
-            return {
-                **state,
-                "error": "No plan to execute",
-                "is_complete": True
-            }
+        # Get schemas of all registered tools
+        tools_schema = tool_registry.get_tools_schema()
 
-        # In a full implementation, we would parse the plan and execute steps
-        # For this example, we'll simulate executing a simple step
+        # Build prompt for executing this specific step
+        exec_prompt = f"""Goal: "{user_prompt}"
+Current step ({plan_step + 1}/{len(plan_steps)}): "{current_step_desc}"
 
-        # Simple simulation: if we haven't executed any steps yet, execute a basic filesystem operation
-        if plan_step == 0 and len(execution_results) == 0:
-            # Try to read the current directory as a simple first step
-            from tools.filesystem import list_directory
-            result = list_directory(".")
+Previous execution history:
+{json.dumps(execution_results[-3:], indent=2) if execution_results else "No previous steps executed yet."}
 
-            execution_results.append({
-                "step": plan_step,
-                "action": "list_directory",
-                "parameters": {"directory_path": "."},
-                "result": result
-            })
+Select the tool needed to execute this step and provide valid parameters.
+If no tool is required (for instance, the step is analytical or already completed), explain your finding.
+"""
 
-            tools_used.append("list_directory")
-            plan_step += 1
+        tool_response = await llm_factory.generate_text_with_tools_fallback(
+            prompt=exec_prompt,
+            tools=tools_schema,
+            system_instruction="You are an autonomous assistant. Call tools with correct parameters to execute the plan step.",
+            temperature=0.2
+        )
 
-            logger.info(f"Executed step {plan_step-1}: list_directory")
+        step_output = {}
+        tool_calls = tool_response.get("tool_calls", [])
+        response_text = tool_response.get("text", "")
 
-            # Check if we should continue (in a real implementation, this would be based on plan completion)
-            needs_more_steps = plan_step < 3  # Simulate 3-step plan for example
-            is_complete = not needs_more_steps
+        if tool_calls:
+            for call in tool_calls:
+                tool_name = call.get("name")
+                tool_args = call.get("arguments", {})
 
-            return {
-                **state,
-                "plan_step": plan_step,
-                "execution_results": execution_results,
-                "tools_used": tools_used,
-                "needs_more_steps": needs_more_steps,
-                "is_complete": is_complete
-            }
+                logger.info(f"Agent calling tool '{tool_name}' with arguments: {tool_args}")
+                try:
+                    tool_fn = tool_registry.get_tool(tool_name)
+                    if not tool_fn:
+                        call_result = {"error": f"Tool '{tool_name}' not found in registry."}
+                    else:
+                        call_result = await tool_registry.execute_tool(tool_name, **tool_args)
 
-        # If we've executed some steps, mark as complete for this example
+                    if tool_name not in tools_used:
+                        tools_used.append(tool_name)
+
+                except Exception as tool_err:
+                    logger.warning(f"Error executing tool '{tool_name}': {tool_err}")
+                    call_result = {"error": str(tool_err)}
+
+                step_output = {
+                    "step": plan_step + 1,
+                    "step_description": current_step_desc,
+                    "action": tool_name,
+                    "parameters": tool_args,
+                    "result": call_result
+                }
+                execution_results.append(step_output)
         else:
-            return {
-                **state,
-                "needs_more_steps": False,
-                "is_complete": True,
-                "message": "Plan execution completed (simplified example)"
+            # LLM decided no tool call was needed
+            step_output = {
+                "step": plan_step + 1,
+                "step_description": current_step_desc,
+                "action": "reasoning",
+                "parameters": {},
+                "result": response_text
             }
+            execution_results.append(step_output)
 
-    except Exception as e:
-        logger.error(f"Error in agent node: {e}")
+        next_step = plan_step + 1
+        has_more = (next_step < len(plan_steps)) and (next_step < max_steps)
+
         return {
             **state,
-            "error": f"Agent execution failed: {str(e)}",
-            "is_complete": True
+            "plan_step": next_step,
+            "execution_results": execution_results,
+            "tools_used": tools_used,
+            "needs_more_steps": has_more,
+            "is_complete": not has_more,
+            "error": None
         }
 
-def fallback_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str, Any]:
+    except Exception as e:
+        logger.error(f"Error in agent_node step {plan_step}: {e}", exc_info=True)
+        return {
+            **state,
+            "error": f"Step {plan_step + 1} execution failed: {str(e)}",
+            "needs_more_steps": False,
+            "is_complete": False
+        }
+
+async def reflect_node(state: Dict[str, Any], config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
     """
-    Fallback node: Handles errors and provides alternative execution paths.
-
-    Args:
-        state: Current agent state
-        config: LangGraph runtime configuration
-
-    Returns:
-        Updated state after fallback handling
+    Reflect node: Reviews all execution results and synthesizes a comprehensive final response.
     """
-    logger.info("Fallback node: Handling errors or providing alternatives")
+    logger.info("Reflect node: Synthesizing final response")
 
-    error = state.get("error")
-    if not error:
-        # No error, just pass through
-        return state
+    user_prompt = state.get("user_prompt", "")
+    current_plan = state.get("current_plan", "")
+    execution_results = state.get("execution_results", [])
+    tools_used = state.get("tools_used", [])
+
+    try:
+        app_config = load_config()
+        llm_factory = LLMFallbackFactory(app_config)
+
+        reflection_prompt = f"""You are the PC Assistant.
+The user requested: "{user_prompt}"
+
+Execution Plan:
+{current_plan}
+
+Actual Execution Results:
+{json.dumps(execution_results, indent=2, default=str)}
+
+Tools Used: {', '.join(tools_used) if tools_used else 'None'}
+
+Please provide a clear, helpful, and well-structured final answer to the user.
+Directly state what was found or completed, and present the information in a concise, readable format.
+"""
+
+        reflection_text = await llm_factory.generate_text_with_fallback(
+            prompt=reflection_prompt,
+            system_instruction="You are a helpful PC assistant. Present execution outcomes clearly and directly.",
+            temperature=0.3,
+            max_tokens=2500
+        )
+
+        return {
+            **state,
+            "reflection": reflection_text,
+            "final_response": reflection_text,
+            "is_complete": True,
+            "needs_more_steps": False,
+            "error": None
+        }
+
+    except Exception as e:
+        logger.error(f"Error in reflect_node: {e}", exc_info=True)
+        # Fallback reflection from raw results
+        fallback_summary = f"Processed request: '{user_prompt}'. Executed {len(execution_results)} step(s)."
+        if execution_results:
+            last_res = execution_results[-1].get("result")
+            fallback_summary += f"\nLast result: {last_res}"
+
+        return {
+            **state,
+            "reflection": fallback_summary,
+            "final_response": fallback_summary,
+            "is_complete": True,
+            "needs_more_steps": False
+        }
+
+async def fallback_node(state: Dict[str, Any], config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
+    """
+    Fallback node: Handles execution errors, provides diagnostics and graceful recovery.
+    """
+    error = state.get("error", "An unexpected error occurred during execution.")
+    user_prompt = state.get("user_prompt", "")
+    execution_results = state.get("execution_results", [])
 
     logger.warning(f"Fallback node handling error: {error}")
 
-    # In a full implementation, we might try different approaches here
-    # For now, we'll just mark as complete with the error
+    fallback_response = (
+        f"I encountered an issue while processing your request: '{user_prompt}'.\n\n"
+        f"Details: {error}\n"
+    )
+
+    if execution_results:
+        fallback_response += f"\nI was able to complete {len(execution_results)} step(s) before encountering the error."
+
     return {
         **state,
+        "reflection": fallback_response,
+        "final_response": fallback_response,
         "needs_more_steps": False,
         "is_complete": True,
         "fallback_applied": True
     }
-
-def reflect_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str, Any]:
-    """
-    Reflect node: Reviews execution results and determines if goal is met.
-
-    Args:
-        state: Current agent state
-        config: LangGraph runtime configuration
-
-    Returns:
-        Updated state after reflection
-    """
-    logger.info("Reflect node: Reviewing execution results")
-
-    try:
-        # Extract state variables
-        execution_results = state.get("execution_results", [])
-        user_prompt = state.get("user_prompt", "")
-
-        # Simple reflection: if we have execution results, consider it successful
-        # In a real implementation, this would evaluate if the user's goal was met
-        if execution_results:
-            reflection = f"Completed {len(execution_results)} execution steps toward goal: '{user_prompt[:50]}...'"
-            is_complete = True
-        else:
-            reflection = "No execution steps were completed"
-            is_complete = False
-
-        return {
-            **state,
-            "reflection": reflection,
-            "is_complete": is_complete
-        }
-
-    except Exception as e:
-        logger.error(f"Error in reflect node: {e}")
-        return {
-            **state,
-            "error": f"Reflection failed: {str(e)}",
-            "is_complete": False
-        }

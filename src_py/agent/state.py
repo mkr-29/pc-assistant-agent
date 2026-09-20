@@ -1,11 +1,11 @@
 """
-Agent state definition for the PC Assistant Agent
+Agent state definition for the PC Assistant Agent.
 """
 from typing import Dict, Any, List, Optional
 from typing_extensions import TypedDict
 
 class AgentState(TypedDict, total=False):
-    """Dictionary representation of agent"""
+    """LangGraph state schema for PC Assistant Agent execution workflow"""
 
     # Conversation context
     user_prompt: str
@@ -14,9 +14,11 @@ class AgentState(TypedDict, total=False):
     knowledge_memory: List[Dict[str, Any]]
     user_profile: Dict[str, Any]
 
-    # Agent state
+    # Agent planning and execution state
     current_plan: str
+    plan_steps: List[str]
     plan_step: int
+    max_steps: int
     execution_results: List[Dict[str, Any]]
     tools_used: List[str]
 
@@ -25,6 +27,8 @@ class AgentState(TypedDict, total=False):
     is_complete: bool
     error: Optional[str]
 
-    # Metadata
+    # Output & metadata
+    reflection: str
+    final_response: str
     model_used: str
     timestamp: str
