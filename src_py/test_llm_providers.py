@@ -177,5 +177,5 @@ async def test_fallback_factory():
 
     result = await factory.generate_text_with_fallback("Test prompt")
     assert result == "Success from Inception fallback!"
-    provider1.generate_text.assert_called_once()
+    assert provider1.generate_text.call_count >= 1
     provider2.generate_text.assert_called_once()

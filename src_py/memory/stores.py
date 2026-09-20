@@ -8,6 +8,7 @@ import re
 import uuid
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
+from memory.vector_store import VectorMemoryStore
 
 # Ensure .data directory exists
 os.makedirs('.data', exist_ok=True)
@@ -197,11 +198,28 @@ class ConversationHistoryStore:
 class KnowledgeMemoryStore:
     """Store for global persistent facts with UUIDs, metadata, search, and capacity management"""
 
-    def __init__(self, data_dir: str = '.data', max_memories: int = 2000):
+    def __init__(
+        self,
+        data_dir: str = '.data',
+        max_memories: int = 2000,
+        file_path: Optional[str] = None,
+        vector_index_path: Optional[str] = None
+    ):
         self.data_dir = data_dir
         self.max_memories = max_memories
-        self.memory_file = os.path.join(data_dir, 'knowledge_memory.json')
+        self.memory_file = file_path or os.path.join(data_dir, 'knowledge_memory.json')
+        if file_path:
+            self.data_dir = os.path.dirname(file_path) or '.'
         self._ensure_file_exists()
+        vec_path = vector_index_path or os.path.join(self.data_dir, 'vector_index.json')
+        self.vector_store = VectorMemoryStore(storage_path=vec_path)
+        # Sync existing memories into vector store if empty
+        memories = self._load_memories()
+        if memories and len(self.vector_store.documents) < len(memories):
+            for m in memories:
+                m_id = str(m.get("id", ""))
+                if m_id and m_id not in self.vector_store.documents:
+                    self.vector_store.add_document(m_id, m.get("fact", ""), metadata=m)
 
     def _ensure_file_exists(self):
         """Ensure the memory file exists"""
@@ -279,6 +297,13 @@ class KnowledgeMemoryStore:
             memories = memories[-self.max_memories:]
 
         self._save_memories(memories)
+
+        # Index in vector store
+        try:
+            self.vector_store.add_document(memory_entry['id'], clean_fact, metadata=memory_entry)
+        except Exception:
+            pass
+
         return memory_entry
 
     def updateMemory(
@@ -317,6 +342,10 @@ class KnowledgeMemoryStore:
 
         if found:
             self._save_memories(memories)
+            try:
+                self.vector_store.add_document(id_str, new_fact.strip(), metadata={"id": id_str})
+            except Exception:
+                pass
         return found
 
     def deleteMemory(self, memory_id: Union[int, str]) -> bool:
@@ -335,7 +364,48 @@ class KnowledgeMemoryStore:
         deleted = len(memories) < initial_len
         if deleted:
             self._save_memories(memories)
+            try:
+                self.vector_store.delete_document(id_str)
+            except Exception:
+                pass
         return deleted
+
+    def semanticSearchMemories(
+        self,
+        query: str,
+        top_k: int = 5,
+        min_score: float = 0.05,
+        min_similarity: Optional[float] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Perform cosine similarity vector search over stored knowledge memories.
+
+        Args:
+            query: Natural language query string
+            top_k: Maximum ranked results to return
+            min_score: Minimum cosine similarity threshold
+            min_similarity: Optional alias for min_score
+
+        Returns:
+            Ranked list of matching memories with similarity_score
+        """
+        effective_min = min_similarity if min_similarity is not None else min_score
+        matches = self.vector_store.search(query, top_k=top_k, min_score=effective_min)
+        memories_by_id = {str(m.get("id")): m for m in self._load_memories()}
+
+        results = []
+        for match in matches:
+            m_id = str(match["id"])
+            full_mem = memories_by_id.get(m_id, {})
+            results.append({
+                "id": m_id,
+                "fact": match["text"],
+                "similarity_score": match["similarity_score"],
+                "category": full_mem.get("category", "general"),
+                "tags": full_mem.get("tags", []),
+                "created_at": full_mem.get("created_at", "")
+            })
+        return results
 
     def searchMemories(
         self,

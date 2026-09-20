@@ -144,11 +144,29 @@ This document outlines all issues identified during the complete audit of the pc
      - Provides actionable remediation guidance with direct developer portal links for Gemini, Groq, Azure, and Telegram.
    - CLI Dry-Run: Added `python src_py/config/env.py` and `python src_py/main.py --check-config` to inspect and report environment health before launching.
 
-### Low Priority
-1. Implement advanced memory features (vector storage, semantic search)
-2. Add more sophisticated fallback and retry mechanisms
-3. Enhance Telegram bot with multimedia processing capabilities
-4. Add performance optimizations and caching
+### Low Priority - COMPLETED
+1. [x] **Implement advanced memory features (vector storage, semantic search)**:
+   - Vector Storage & Embeddings (`src_py/memory/vector_store.py`): Created `SimpleTextVectorizer` combining subword character n-grams (3-4 n-grams for typo resilience and morphology) and word tokens with smoothed TF-IDF weighting and L2 normalization with zero external C++ dependencies.
+   - Vector Memory Engine (`src_py/memory/vector_store.py`): Implemented `VectorMemoryStore` persisting document vectors to `.data/vector_index.json`, providing cosine similarity calculation, top-k ranking, and threshold filtering.
+   - KnowledgeMemoryStore Integration (`src_py/memory/stores.py`): Integrated `VectorMemoryStore` with `KnowledgeMemoryStore`, automatically indexing facts on `addMemory`, updating on `updateMemory`, deleting on `deleteMemory`, and providing `semanticSearchMemories`.
+   - Tool & Telegram Integration: Registered `semantic_search_knowledge_memories` tool in `tool_registry` (`src_py/tools/memory.py`) and added `/search_semantic <query>` command in Telegram bot (`src_py/main.py`).
+2. [x] **Add more sophisticated fallback and retry mechanisms**:
+   - Exponential Backoff with Jitter (`src_py/utils/retry.py`): Implemented `retry_async_call` with configurable attempts, initial delay, multiplier factor, max delay, and randomized jitter (+/- 20%) to avoid thundering herd.
+   - Selective Transient Error Detection (`is_transient_error`): Accurately detects retryable errors (HTTP 429, 500, 502, 503, 504, rate limits, timeouts, connection drops) while fast-failing non-transient errors (400, 401, 403, 404, auth errors, syntax errors).
+   - Provider Circuit Breakers (`src_py/llm/circuit_breaker.py`): Built state machine with `CLOSED`, `OPEN`, and `HALF_OPEN` states. Tracks consecutive failures per provider, trips to `OPEN` on threshold (3 failures), and enters `HALF_OPEN` after a cooldown period (60s) to probe provider recovery.
+   - LLMFallbackFactory Integration (`src_py/llm/factory.py`): Automatically skips tripped providers whose circuit breaker is `OPEN`, wraps requests in retry logic, records successes and failures in breaker telemetry, and seamlessly cascades down provider fallbacks.
+3. [x] **Enhance Telegram bot with multimedia processing capabilities**:
+   - Image Processing & Inspection (`src_py/utils/multimedia.py`): Created `process_image` leveraging Pillow to extract image dimensions, color mode, format, file size, aspect ratio, and OCR text.
+   - Document Processing (`src_py/utils/multimedia.py`): Created `process_document` extracting text and page counts from PDFs (via `pdfplumber`), text/markdown/code files, and structured documents.
+   - Audio Note Metadata (`src_py/utils/multimedia.py`): Created `process_voice_metadata` validating audio duration, mime type, and file size for speech transcription pipelines.
+   - Telegram Bot Routing (`src_py/telegram_integration/bot.py` & `src_py/main.py`): Added `filters.Document.ALL` alongside photo and voice handlers; added `download_telegram_file` for local storage in `.data/media/`; wired automatic extraction and formatted summaries for images, voice notes, and documents in `process_telegram_message`.
+4. [x] **Add performance optimizations and caching**:
+   - In-Memory TTLCache (`src_py/utils/cache.py`): Built high-performance cache with configurable time-to-live (TTL), maximum entry capacity with oldest-entry eviction, prefix-based invalidation, and hit/miss/eviction metric tracking.
+   - Cached Operation Decorator (`cached_operation`): Decorator for asynchronous and synchronous functions with automatic cache key generation.
+   - Tool Read/Write Integration:
+     - `read_file` and `file_exists` (`src_py/tools/filesystem.py`): Caches file contents and existence with TTL; automatically invalidates cached entries whenever `write_file` modifies or creates a file.
+     - `fetch_web_page` and `search_web` (`src_py/tools/web.py`): Caches HTTP responses and web queries to eliminate redundant external network requests and prevent rate-limiting.
+     - Telemetry Integration: Exposed real-time cache entries, hits, misses, and hit ratio percent in `/status` and `/metrics` Telegram bot commands and monitoring endpoints.
 
 ## Files Examined During Audit
 - `/src_py/main.py` - Main entry point

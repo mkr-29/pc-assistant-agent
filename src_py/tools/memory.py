@@ -311,3 +311,30 @@ def search_user_memories(query: str) -> Dict[str, Any]:
         })
     except Exception as e:
         return error_response(f"Error searching user memories: {str(e)}", code="SEARCH_PROFILE_FAILED", query=query, results=[])
+
+@register_tool("semantic_search_knowledge_memories", "memory")
+def semantic_search_knowledge_memories(query: str, top_k: int = 5, min_score: float = 0.05) -> Dict[str, Any]:
+    """
+    Perform semantic vector search (cosine similarity) over knowledge memories.
+
+    Args:
+        query: Natural language query string
+        top_k: Maximum number of ranked results (default: 5)
+        min_score: Minimum cosine similarity threshold (default: 0.05)
+
+    Returns:
+        Standardized dictionary with ranked semantic search results
+    """
+    try:
+        if not query or not str(query).strip():
+            return error_response("Query cannot be empty", code="EMPTY_QUERY", results=[])
+
+        results = _knowledge_memory_store.semanticSearchMemories(query, top_k=top_k, min_score=min_score)
+        return success_response(data={
+            "query": query,
+            "results": results,
+            "count": len(results),
+            "search_type": "vector_cosine_similarity"
+        })
+    except Exception as e:
+        return error_response(f"Error executing semantic memory search: {str(e)}", code="SEMANTIC_SEARCH_FAILED", query=query, results=[])

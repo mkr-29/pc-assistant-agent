@@ -14,16 +14,30 @@ from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 load_dotenv()
 
-# Import our modules
-from config.env import load_config, validate_config, validate_config_detailed, format_validation_report
-from memory.stores import ConversationHistoryStore, KnowledgeMemoryStore, UserProfileStore
-from agent.graph import agent_graph
-from telegram_integration.bot import TelegramBot
-from monitoring.metrics import metrics_collector
-from monitoring.health import HealthChecker, HealthServer
-from utils.logger import setup_logging, get_logger
-import tools
-from tools.registry import tool_registry
+try:
+    from config.env import load_config, validate_config, validate_config_detailed, format_validation_report
+    from memory.stores import ConversationHistoryStore, KnowledgeMemoryStore, UserProfileStore
+    from agent.graph import agent_graph
+    from telegram_integration.bot import TelegramBot
+    from monitoring.metrics import metrics_collector
+    from monitoring.health import HealthChecker, HealthServer
+    from utils.logger import setup_logging, get_logger
+    from utils.cache import global_cache
+    from utils.multimedia import process_image, process_document, process_voice_metadata
+    import tools
+    from tools.registry import tool_registry
+except ImportError:
+    from src_py.config.env import load_config, validate_config, validate_config_detailed, format_validation_report
+    from src_py.memory.stores import ConversationHistoryStore, KnowledgeMemoryStore, UserProfileStore
+    from src_py.agent.graph import agent_graph
+    from src_py.telegram_integration.bot import TelegramBot
+    from src_py.monitoring.metrics import metrics_collector
+    from src_py.monitoring.health import HealthChecker, HealthServer
+    from src_py.utils.logger import setup_logging, get_logger
+    from src_py.utils.cache import global_cache
+    from src_py.utils.multimedia import process_image, process_document, process_voice_metadata
+    import src_py.tools as tools
+    from src_py.tools.registry import tool_registry
 
 # Configure centralized structured logging (console + rotating file)
 setup_logging()
@@ -132,11 +146,13 @@ class PCAssistantAgent:
             elif text.startswith("/status") or text.startswith("/metrics"):
                 m = metrics_collector.get_metrics()
                 exec_data = m["executions"]
+                c_stats = global_cache.get_stats()
                 lines = [
                     "📊 <b>Agent Telemetry & Status</b>",
                     f"• Total Executions: {exec_data['total']} (Success: {exec_data['successful']}, Failed: {exec_data['failed']})",
                     f"• Success Rate: {exec_data['success_rate_percent']}%",
                     f"• Latency: avg {exec_data['latency_ms']['avg']} ms (last: {exec_data['latency_ms']['last']} ms)",
+                    f"• Cache: {c_stats['cached_entries']} entries, {c_stats['hits']} hits, {c_stats['misses']} misses ({c_stats['hit_ratio_percent']}% hit ratio)",
                     f"• Process Memory RSS: {m['system'].get('process_memory_rss_mb', 'N/A')} MB",
                     f"• Process CPU: {m['system'].get('process_cpu_percent', 'N/A')}%"
                 ]
@@ -213,6 +229,28 @@ class PCAssistantAgent:
                         "chat_id": chat_id
                     }
 
+            elif text.startswith("/search_semantic "):
+                query = text[17:].strip()
+                if not query:
+                    metrics_collector.record_execution(False, (time.time() - start_time) * 1000)
+                    return {
+                        "success": False,
+                        "response_text": "Please specify a query for semantic search.",
+                        "chat_id": chat_id
+                    }
+                matches = knowledge_memory_store.semanticSearchMemories(query)
+                metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
+                if matches:
+                    text_matches = "\n".join([f"• [{m.get('id', '')}] {m['fact']} (similarity: {m.get('similarity_score', 0):.2f})" for m in matches])
+                    response_text = f"Semantic search matches for '{query}':\n\n{text_matches}"
+                else:
+                    response_text = f"No semantic memories found matching '{query}'."
+                return {
+                    "success": True,
+                    "response_text": response_text,
+                    "chat_id": chat_id
+                }
+
             elif text.startswith("/search_memories ") or text.startswith("/search "):
                 prefix_len = 17 if text.startswith("/search_memories ") else 8
                 query = text[prefix_len:].strip()
@@ -250,21 +288,119 @@ class PCAssistantAgent:
                     "chat_id": chat_id
                 }
 
-            # Handle multimedia messages (simplified)
+            # Handle multimedia messages
             elif "photo" in message and message["photo"]:
+                photos = message["photo"]
+                largest = photos[-1] if isinstance(photos, list) and photos else {}
+                file_id = largest.get("file_id")
+                caption = message.get("caption") or ""
+
+                temp_path = f".data/media/photos/{file_id}.jpg" if file_id else None
+                image_info = {}
+                if self.telegram_bot and file_id and temp_path:
+                    try:
+                        downloaded = await self.telegram_bot.download_telegram_file(file_id, temp_path)
+                        if downloaded and os.path.exists(temp_path):
+                            image_info = process_image(temp_path)
+                    except Exception as e:
+                        logger.warning(f"Failed to download/process photo: {e}")
+
+                if not image_info:
+                    w = largest.get("width", "unknown")
+                    h = largest.get("height", "unknown")
+                    sz = largest.get("file_size", "unknown")
+                    image_info = {
+                        "success": True,
+                        "dimensions": {"width": w, "height": h},
+                        "analysis": f"Photo dimensions: {w}x{h}, size: {sz} bytes"
+                    }
+
+                lines = [
+                    "📷 <b>Photo Received & Processed</b>",
+                    f"• Details: {image_info.get('analysis', 'Analysis complete')}"
+                ]
+                if image_info.get("extracted_text"):
+                    lines.append(f"• Extracted Text:\n{image_info['extracted_text']}")
+                if caption:
+                    lines.append(f"• Caption: {caption}")
+
                 metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
                 return {
                     "success": True,
-                    "response_text": "I can see you've sent a photo! Photo processing is coming soon.",
-                    "chat_id": chat_id
+                    "response_text": "\n".join(lines),
+                    "chat_id": chat_id,
+                    "media_data": image_info
                 }
 
             elif "voice" in message and message["voice"]:
+                voice_data = message["voice"]
+                file_id = voice_data.get("file_id")
+                duration = voice_data.get("duration", 0)
+                mime = voice_data.get("mime_type", "audio/ogg")
+                file_size = voice_data.get("file_size")
+
+                meta = process_voice_metadata(duration=duration, mime_type=mime, file_size=file_size)
+
+                lines = [
+                    "🎤 <b>Voice Note Received</b>",
+                    f"• Duration: {meta.get('formatted_duration', f'{duration}s')} ({duration}s)",
+                    f"• Format: {mime}",
+                    f"• Size: {file_size or 'unknown'} bytes",
+                    "• <i>Status: Voice note validated and prepared for speech transcription.</i>"
+                ]
+
                 metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
                 return {
                     "success": True,
-                    "response_text": "I can see you've sent a voice message! Voice transcription is coming soon.",
-                    "chat_id": chat_id
+                    "response_text": "\n".join(lines),
+                    "chat_id": chat_id,
+                    "voice_metadata": meta
+                }
+
+            elif "document" in message and message["document"]:
+                doc = message["document"]
+                file_id = doc.get("file_id")
+                file_name = doc.get("file_name", "document")
+                mime_type = doc.get("mime_type", "")
+                file_size = doc.get("file_size", 0)
+                caption = message.get("caption") or ""
+
+                temp_doc_path = f".data/media/documents/{file_name}" if file_name else None
+                doc_info = {}
+                if self.telegram_bot and file_id and temp_doc_path:
+                    try:
+                        downloaded = await self.telegram_bot.download_telegram_file(file_id, temp_doc_path)
+                        if downloaded and os.path.exists(temp_doc_path):
+                            doc_info = process_document(temp_doc_path, mime_type=mime_type)
+                    except Exception as e:
+                        logger.warning(f"Failed to download/process document: {e}")
+
+                if not doc_info:
+                    doc_info = {
+                        "success": True,
+                        "file_name": file_name,
+                        "char_count": 0,
+                        "summary": f"Document '{file_name}' ({mime_type or 'unknown format'}, {file_size} bytes)"
+                    }
+
+                lines = [
+                    f"📄 <b>Document Received: {file_name}</b>",
+                    f"• Type: {mime_type or 'unknown'} ({file_size} bytes)"
+                ]
+                if doc_info.get("page_count"):
+                    lines.append(f"• Pages: {doc_info['page_count']}")
+                if doc_info.get("extracted_text"):
+                    preview = doc_info["extracted_text"][:400]
+                    lines.append(f"• Extracted Text ({doc_info.get('char_count', 0)} chars):\n<pre>{preview}</pre>")
+                if caption:
+                    lines.append(f"• Caption: {caption}")
+
+                metrics_collector.record_execution(True, (time.time() - start_time) * 1000)
+                return {
+                    "success": True,
+                    "response_text": "\n".join(lines),
+                    "chat_id": chat_id,
+                    "document_data": doc_info
                 }
 
             # Process regular text message with the agent

@@ -12,11 +12,13 @@ try:
     from utils.response import success_response, error_response
     from security.validator import validate_path
     from tools.registry import register_tool
+    from utils.cache import global_cache
 except ImportError:
     from src_py.utils.paths import resolve_path
     from src_py.utils.response import success_response, error_response
     from src_py.security.validator import validate_path
     from src_py.tools.registry import register_tool
+    from src_py.utils.cache import global_cache
 
 @register_tool("read_file", "filesystem")
 def read_file(file_path: str, offset: int = 0, limit: Optional[int] = None) -> Dict[str, Any]:
@@ -45,6 +47,11 @@ def read_file(file_path: str, offset: int = 0, limit: Optional[int] = None) -> D
         if os.path.isdir(resolved_path):
             return error_response(f"Path is a directory, not a file: {resolved_path}", code="IS_DIRECTORY", file_path=resolved_path)
 
+        cache_key = f"read_file:{resolved_path}:{offset}:{limit}"
+        cached = global_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         with open(resolved_path, 'r', encoding='utf-8', errors='replace') as f:
             lines = f.readlines()
 
@@ -52,23 +59,27 @@ def read_file(file_path: str, offset: int = 0, limit: Optional[int] = None) -> D
         if offset < 0:
             offset = 0
         if offset >= total_lines:
-            return success_response(data={
+            res = success_response(data={
                 "content": "",
                 "total_lines": total_lines,
                 "lines_returned": 0,
                 "file_path": resolved_path
             })
+            global_cache.set(cache_key, res, ttl=120.0)
+            return res
 
         end_line = offset + limit if limit is not None else total_lines
         selected_lines = lines[offset:end_line]
         content = ''.join(selected_lines)
 
-        return success_response(data={
+        res = success_response(data={
             "content": content,
             "total_lines": total_lines,
             "lines_returned": len(selected_lines),
             "file_path": resolved_path
         })
+        global_cache.set(cache_key, res, ttl=120.0)
+        return res
 
     except Exception as e:
         return error_response(f"Error reading file: {str(e)}", code="READ_ERROR", file_path=file_path)
@@ -99,6 +110,10 @@ def write_file(file_path: str, content: str) -> Dict[str, Any]:
 
         with open(resolved_path, 'w', encoding='utf-8') as f:
             f.write(content)
+
+        # Invalidate cached file reads for this file and file existence
+        global_cache.invalidate(f"read_file:{resolved_path}")
+        global_cache.invalidate(f"file_exists:{resolved_path}")
 
         return success_response(
             message=f"Successfully wrote to {resolved_path}",
@@ -203,13 +218,20 @@ def file_exists(file_path: str) -> Dict[str, Any]:
     """
     try:
         resolved_path = resolve_path(file_path)
+        cache_key = f"file_exists:{resolved_path}"
+        cached = global_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         exists = os.path.isfile(resolved_path)
 
-        return success_response(data={
+        res = success_response(data={
             "exists": exists,
             "file_path": resolved_path,
             "type": "file" if exists else "none"
         })
+        global_cache.set(cache_key, res, ttl=60.0)
+        return res
 
     except Exception as e:
         return error_response(f"Error checking file existence: {str(e)}", code="EXISTS_ERROR", file_path=file_path)

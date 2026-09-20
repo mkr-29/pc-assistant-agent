@@ -12,10 +12,12 @@ try:
     from tools.registry import register_tool
     from utils.response import success_response, error_response
     from security.validator import validate_url
+    from utils.cache import global_cache
 except ImportError:
     from src_py.tools.registry import register_tool
     from src_py.utils.response import success_response, error_response
     from src_py.security.validator import validate_url
+    from src_py.utils.cache import global_cache
 
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
@@ -37,6 +39,11 @@ async def fetch_web_page(url: str, extract_text: bool = True, max_chars: int = 6
         return error_response(url_val["reason"], code="SSRF_SECURITY_BLOCK", url=url)
 
     clean_url = url_val["url"]
+    cache_key = f"fetch_web_page:{clean_url}:{extract_text}:{max_chars}"
+    cached_res = global_cache.get(cache_key)
+    if cached_res is not None:
+        return cached_res
+
     headers = {"User-Agent": DEFAULT_USER_AGENT}
 
     try:
@@ -73,7 +80,7 @@ async def fetch_web_page(url: str, extract_text: bool = True, max_chars: int = 6
             cleaned_text = re.sub(r'\n{3,}', '\n\n', text)
             truncated_text = cleaned_text[:max_chars]
 
-            return success_response(data={
+            res = success_response(data={
                 "url": clean_url,
                 "title": title,
                 "status_code": resp.status_code,
@@ -81,6 +88,8 @@ async def fetch_web_page(url: str, extract_text: bool = True, max_chars: int = 6
                 "is_truncated": len(cleaned_text) > max_chars,
                 "total_chars": len(cleaned_text)
             })
+            global_cache.set(cache_key, res, ttl=300.0)
+            return res
 
     except Exception as e:
         return error_response(f"Failed to fetch {clean_url}: {str(e)}", code="FETCH_ERROR", url=clean_url)
@@ -102,6 +111,11 @@ async def search_web(query: str, max_results: int = 5) -> Dict[str, Any]:
         return error_response("Search query cannot be empty.", code="EMPTY_QUERY", results=[])
 
     limit = max(1, min(max_results, 10))
+    cache_key = f"search_web:{clean_query}:{limit}"
+    cached_res = global_cache.get(cache_key)
+    if cached_res is not None:
+        return cached_res
+
     search_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(clean_query)}"
     headers = {"User-Agent": DEFAULT_USER_AGENT}
 
@@ -140,11 +154,13 @@ async def search_web(query: str, max_results: int = 5) -> Dict[str, Any]:
                     "snippet": snippet
                 })
 
-            return success_response(data={
+            res = success_response(data={
                 "query": clean_query,
                 "count": len(results),
                 "results": results
             })
+            global_cache.set(cache_key, res, ttl=300.0)
+            return res
 
     except Exception as e:
         return error_response(f"Error performing web search: {str(e)}", code="SEARCH_ERROR", results=[])

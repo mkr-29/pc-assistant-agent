@@ -53,9 +53,9 @@ class TelegramBot:
             self.application.add_handler(self.CommandHandler("start", self._start_command))
             self.application.add_handler(self.CommandHandler("help", self._help_command))
 
-            # Message handler for text, voice, photos, etc.
+            # Message handler for text, voice, photos, documents, etc.
             self.application.add_handler(self.MessageHandler(
-                self.filters.TEXT | self.filters.VOICE | self.filters.PHOTO,
+                self.filters.TEXT | self.filters.VOICE | self.filters.PHOTO | self.filters.Document.ALL,
                 self._handle_message
             ))
 
@@ -192,6 +192,12 @@ class TelegramBot:
                         "height": photo.height
                     } for photo in message.photo
                 ] if message.photo else None,
+                "document": {
+                    "file_id": message.document.file_id,
+                    "file_name": message.document.file_name,
+                    "mime_type": message.document.mime_type,
+                    "file_size": message.document.file_size
+                } if message.document else None,
                 "caption": message.caption if message.caption else None
             }
         }
@@ -211,6 +217,19 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"Error in message handler: {e}")
             await message.reply_text(f"Sorry, I encountered an error while processing your message: {str(e)}")
+
+    async def download_telegram_file(self, file_id: str, dest_path: str) -> bool:
+        """Download file by file_id to a local destination path"""
+        if not self.application:
+            return False
+        try:
+            tg_file = await self.application.bot.get_file(file_id)
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            await tg_file.download_to_drive(custom_path=dest_path)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to download telegram file {file_id}: {e}")
+            return False
 
     async def _error_handler(self, update: object, context: "ContextTypes.DEFAULT_TYPE"):
         """Handle errors"""

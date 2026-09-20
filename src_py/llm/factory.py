@@ -13,15 +13,18 @@ from .arcee import ArceeProvider
 from .longcat import LongCatProvider
 from .thinking_machine import ThinkingMachineProvider
 from .azure import AzureOpenAIProvider
+from .circuit_breaker import CircuitBreaker
+from utils.retry import retry_async_call
 
 logger = logging.getLogger(__name__)
 
 class LLMFallbackFactory:
-    """Factory for creating LLM providers with automatic fallback capability"""
+    """Factory for creating LLM providers with automatic fallback, retries, and circuit breakers"""
 
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.providers: List[LLMProvider] = []
+        self.circuit_breakers: Dict[str, CircuitBreaker] = {}
         self._initialize_providers()
 
     def _initialize_providers(self):
@@ -159,29 +162,41 @@ class LLMFallbackFactory:
         if not self.providers:
             logger.warning("No LLM providers could be initialized. Agent will operate with mocked/offline capabilities.")
         else:
+            for p in self.providers:
+                p_name = p.__class__.__name__
+                self.circuit_breakers[p_name] = CircuitBreaker(name=p_name, failure_threshold=3, cooldown_seconds=60.0)
+
             provider_names = [f"{p.__class__.__name__}({p.model})" for p in self.providers]
-            logger.info(f"Initialized {len(self.providers)} LLM provider(s): {', '.join(provider_names)}")
+            logger.info(f"Initialized {len(self.providers)} LLM provider(s) with circuit breakers: {', '.join(provider_names)}")
 
     def get_primary_provider(self) -> Optional[LLMProvider]:
         """Get the primary (first available) provider"""
         return self.providers[0] if self.providers else None
 
     def get_provider_with_fallback(self) -> Generator[LLMProvider, None, None]:
-        """Yield providers in fallback order"""
+        """Yield providers in fallback order, skipping providers whose circuit breaker is OPEN"""
         for provider in self.providers:
+            p_name = provider.__class__.__name__
+            cb = self.circuit_breakers.get(p_name)
             if provider.is_available():
+                if cb and not cb.can_execute():
+                    logger.info(f"Circuit breaker for provider '{p_name}' is OPEN. Skipping to fallback.")
+                    continue
                 yield provider
 
     def get_provider_summary(self) -> List[Dict[str, Any]]:
-        """Return diagnostic summary of configured providers"""
-        return [
-            {
-                "name": p.__class__.__name__,
+        """Return diagnostic summary of configured providers and their circuit breaker states"""
+        summary = []
+        for p in self.providers:
+            p_name = p.__class__.__name__
+            cb = self.circuit_breakers.get(p_name)
+            summary.append({
+                "name": p_name,
                 "model": p.model,
-                "is_available": p.is_available()
-            }
-            for p in self.providers
-        ]
+                "is_available": p.is_available(),
+                "circuit_breaker": cb.get_status() if cb else {"state": "CLOSED"}
+            })
+        return summary
 
     async def generate_text_with_fallback(
         self,
@@ -190,18 +205,46 @@ class LLMFallbackFactory:
         temperature: float = 0.7,
         max_tokens: Optional[int] = None
     ) -> str:
-        """Generate text using the first responding provider in the cascade"""
+        """Generate text using the first responding provider in the cascade with retry and circuit breaker tracking"""
         errors = []
+        attempted_count = 0
 
         for provider in self.get_provider_with_fallback():
+            attempted_count += 1
+            p_name = provider.__class__.__name__
+            cb = self.circuit_breakers.get(p_name)
+
             try:
-                logger.debug(f"Attempting generate_text with {provider.__class__.__name__} ({provider.model})")
-                return await provider.generate_text(
-                    prompt, system_instruction, temperature, max_tokens
-                )
+                logger.debug(f"Attempting generate_text with {p_name} ({provider.model})")
+
+                async def _call():
+                    return await provider.generate_text(
+                        prompt, system_instruction, temperature, max_tokens
+                    )
+
+                result = await retry_async_call(_call, max_retries=2, initial_delay=0.3)
+                if cb:
+                    cb.record_success()
+
+                # Record metrics
+                try:
+                    from monitoring.metrics import metrics_collector
+                    metrics_collector.record_llm_call(p_name, success=True, fallback_used=(attempted_count > 1))
+                except Exception:
+                    pass
+
+                return result
             except Exception as e:
-                errors.append(f"{provider.__class__.__name__}: {str(e)}")
-                logger.warning(f"Provider {provider.__class__.__name__} failed: {e}. Falling back to next...")
+                if cb:
+                    cb.record_failure(e)
+                try:
+                    from monitoring.metrics import metrics_collector
+                    metrics_collector.record_llm_call(p_name, success=False, fallback_used=True)
+                except Exception:
+                    pass
+
+                errors.append(f"{p_name}: {str(e)}")
+                logger.warning(f"Provider {p_name} failed: {e}. Falling back to next...")
 
         error_msg = f"All LLM providers failed:\n" + "\n".join(f"  - {err}" for err in errors)
         logger.error(error_msg)
@@ -215,18 +258,46 @@ class LLMFallbackFactory:
         temperature: float = 0.7,
         max_tokens: Optional[int] = None
     ) -> Dict[str, Any]:
-        """Generate text and tool calls using the first responding provider in the cascade"""
+        """Generate text and tool calls using the first responding provider with retry and circuit breaker tracking"""
         errors = []
+        attempted_count = 0
 
         for provider in self.get_provider_with_fallback():
+            attempted_count += 1
+            p_name = provider.__class__.__name__
+            cb = self.circuit_breakers.get(p_name)
+
             try:
-                logger.debug(f"Attempting generate_text_with_tools with {provider.__class__.__name__} ({provider.model})")
-                return await provider.generate_text_with_tools(
-                    prompt, tools, system_instruction, temperature, max_tokens
-                )
+                logger.debug(f"Attempting generate_text_with_tools with {p_name} ({provider.model})")
+
+                async def _call():
+                    return await provider.generate_text_with_tools(
+                        prompt, tools, system_instruction, temperature, max_tokens
+                    )
+
+                result = await retry_async_call(_call, max_retries=2, initial_delay=0.3)
+                if cb:
+                    cb.record_success()
+
+                # Record metrics
+                try:
+                    from monitoring.metrics import metrics_collector
+                    metrics_collector.record_llm_call(p_name, success=True, fallback_used=(attempted_count > 1))
+                except Exception:
+                    pass
+
+                return result
             except Exception as e:
-                errors.append(f"{provider.__class__.__name__}: {str(e)}")
-                logger.warning(f"Provider {provider.__class__.__name__} failed tool generation: {e}. Falling back...")
+                if cb:
+                    cb.record_failure(e)
+                try:
+                    from monitoring.metrics import metrics_collector
+                    metrics_collector.record_llm_call(p_name, success=False, fallback_used=True)
+                except Exception:
+                    pass
+
+                errors.append(f"{p_name}: {str(e)}")
+                logger.warning(f"Provider {p_name} failed tool generation: {e}. Falling back...")
 
         error_msg = f"All LLM providers failed tool generation:\n" + "\n".join(f"  - {err}" for err in errors)
         logger.error(error_msg)

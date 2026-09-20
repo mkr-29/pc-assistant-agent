@@ -28,3 +28,8 @@ class LLMProvider(ABC):
     def is_available(self) -> bool:
         """Check if the provider is available (has API key, etc.)"""
         return bool(self.api_key)
+
+    @property
+    def name(self) -> str:
+        """Return provider name (class name)"""
+        return self.__class__.__name__

@@ -28,6 +28,7 @@ def success_response(
     if message:
         res["message"] = message
     if data:
+        res["data"] = data
         res.update(data)
     if kwargs:
         res.update(kwargs)
@@ -57,6 +58,7 @@ def error_response(
         "error_code": code
     }
     if data:
+        res["data"] = data
         res.update(data)
     if kwargs:
         res.update(kwargs)
