@@ -53,7 +53,7 @@ class PCAssistantAgent:
 
     def __init__(self, port_override: Optional[int] = None, disable_health_server: bool = False):
         self.config = None
-        self.agent_app = None
+        self.agent_app = agent_graph
         self.telegram_bot = None
         self.health_server: Optional[HealthServer] = None
         self.running = False
@@ -288,6 +288,28 @@ class PCAssistantAgent:
                     "chat_id": chat_id
                 }
 
+            elif text.startswith("/screenshot"):
+                try:
+                    from tools.system import take_screenshot
+                except ImportError:
+                    from src_py.tools.system import take_screenshot
+
+                shot_res = await take_screenshot()
+                metrics_collector.record_execution(shot_res.get("success", False), (time.time() - start_time) * 1000)
+                if shot_res.get("success") and shot_res.get("file_path"):
+                    return {
+                        "success": True,
+                        "response_text": "📸 Here is a screenshot of your screen:",
+                        "photo_path": shot_res["file_path"],
+                        "chat_id": chat_id
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "response_text": f"Failed to take screenshot: {shot_res.get('error', 'Unknown error')}",
+                        "chat_id": chat_id
+                    }
+
             # Handle multimedia messages
             elif "photo" in message and message["photo"]:
                 photos = message["photo"]
@@ -428,7 +450,11 @@ class PCAssistantAgent:
 
                 # Run the agent
                 logger.info("Running agent graph...")
-                final_state = await self.agent_app.ainvoke(initial_state)
+                try:
+                    final_state = await self.agent_app.ainvoke(initial_state)
+                except Exception as g_err:
+                    logger.warning(f"Agent graph execution encountered an error: {g_err}")
+                    final_state = {"error": str(g_err)}
 
                 # Extract results
                 agent_response = final_state.get("reflection",
@@ -441,7 +467,37 @@ class PCAssistantAgent:
                 is_success = not bool(final_state.get("error"))
                 metrics_collector.record_execution(is_success, (time.time() - start_time) * 1000)
 
-                return {
+                # Detect if any step took a screenshot or produced a photo
+                detected_photo_path = final_state.get("photo_path")
+                if not detected_photo_path:
+                    for exec_res in final_state.get("execution_results", []):
+                        res_data = exec_res.get("result", {})
+                        if isinstance(res_data, dict):
+                            p = res_data.get("photo_path") or res_data.get("file_path")
+                            if p and isinstance(p, str) and p.lower().endswith((".png", ".jpg", ".jpeg")) and os.path.exists(p):
+                                detected_photo_path = p
+                                break
+
+                # Safety fallback: if user prompt was asking for a screenshot but model failed to call the tool or gave a refusal:
+                if not detected_photo_path and any(w in text.lower() for w in ("screenshot", "screen shot", "capture screen", "capture my screen", "send me a screenshot")):
+                    try:
+                        from tools.system import take_screenshot
+                    except ImportError:
+                        from src_py.tools.system import take_screenshot
+
+                    try:
+                        shot_res = await take_screenshot()
+                        if shot_res.get("success") and os.path.exists(shot_res.get("file_path", "")):
+                            detected_photo_path = shot_res["file_path"]
+                            agent_response = "📸 Here is a screenshot of your screen:"
+                            is_success = True
+                    except Exception as s_err:
+                        logger.warning(f"Fallback screenshot capture failed: {s_err}")
+
+                if detected_photo_path:
+                    is_success = True
+
+                resp_payload = {
                     "success": is_success,
                     "response_text": agent_response,
                     "chat_id": chat_id,
@@ -451,6 +507,10 @@ class PCAssistantAgent:
                         "tools_used": final_state.get("tools_used", [])
                     }
                 }
+                if detected_photo_path and os.path.exists(detected_photo_path):
+                    resp_payload["photo_path"] = detected_photo_path
+
+                return resp_payload
 
             else:
                 metrics_collector.record_execution(False, (time.time() - start_time) * 1000)

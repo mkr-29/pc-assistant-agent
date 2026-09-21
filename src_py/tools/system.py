@@ -345,3 +345,85 @@ async def send_notification(title: str, message: str) -> Dict[str, Any]:
     safe_msg = message.replace('"', '\\"')
     script = f'display notification "{safe_msg}" with title "{safe_title}"'
     return await run_applescript(script)
+
+@register_tool("take_screenshot", "system")
+async def take_screenshot(file_path: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Capture a screenshot of the current computer screen and save it to disk.
+
+    Args:
+        file_path: Optional target file path to save the screenshot (.png). If omitted, a timestamped file in .data/media/screenshots/ is generated.
+
+    Returns:
+        Dictionary with success status, file_path, photo_path, dimensions, and file size
+    """
+    try:
+        from datetime import datetime
+        from pathlib import Path
+
+        if not file_path:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            dest_dir = Path(".data/media/screenshots")
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            target_path = str((dest_dir / f"screenshot_{timestamp}.png").resolve())
+        else:
+            target_path = resolve_path(file_path)
+            Path(target_path).parent.mkdir(parents=True, exist_ok=True)
+
+        captured = False
+        width, height = 0, 0
+
+        # Method 1: On macOS, use native silent screencapture
+        if IS_MACOS:
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "screencapture", "-x", target_path,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                await asyncio.wait_for(proc.communicate(), timeout=15.0)
+                if proc.returncode == 0 and os.path.exists(target_path) and os.path.getsize(target_path) > 0:
+                    captured = True
+            except Exception:
+                captured = False
+
+        # Method 2: Cross-platform PIL ImageGrab fallback
+        if not captured:
+            try:
+                from PIL import ImageGrab
+                img = ImageGrab.grab()
+                img.save(target_path, format="PNG")
+                width, height = img.size
+                captured = True
+            except Exception as e:
+                return {
+                    "success": False,
+                    "error": f"Failed to capture screen: {str(e)}",
+                    "file_path": target_path
+                }
+
+        if captured and (width == 0 or height == 0):
+            try:
+                from PIL import Image
+                with Image.open(target_path) as im:
+                    width, height = im.size
+            except Exception:
+                pass
+
+        file_size_kb = round(os.path.getsize(target_path) / 1024, 2) if os.path.exists(target_path) else 0
+
+        return {
+            "success": True,
+            "message": f"Screenshot captured successfully ({width}x{height}, {file_size_kb} KB)",
+            "file_path": target_path,
+            "photo_path": target_path,
+            "width": width,
+            "height": height,
+            "file_size_kb": file_size_kb
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Error taking screenshot: {str(e)}"
+        }

@@ -6,6 +6,7 @@ reflection synthesis, and fallback error handling.
 import asyncio
 import json
 import logging
+import os
 import re
 from typing import Dict, Any, List, Optional
 from langchain_core.runnables import RunnableConfig
@@ -84,6 +85,7 @@ async def planner_node(state: Dict[str, Any], config: Optional[RunnableConfig] =
         context_str = "\n".join(context_parts)
 
         planning_prompt = f"""You are an intelligent PC Assistant Agent planner.
+You have direct execution capabilities on this machine including taking desktop screenshots (`take_screenshot`), running commands, interacting with macOS, reading/writing files, querying system info, web browsing, and sending photos/messages to Telegram.
 Create a concise, step-by-step action plan to accomplish the user's request:
 "{user_prompt}"
 
@@ -93,9 +95,9 @@ Available Tools:
 {tools_summary}
 
 Requirements:
-1. Break the task into 1 to 5 concrete, ordered steps.
-2. Number each step clearly (e.g., "1. Inspect current directory", "2. Read the file").
-3. Only use steps that can be accomplished with available tools or direct reasoning.
+1. Break the task into 1 to 4 concrete, ordered steps.
+2. Number each step clearly (e.g., "1. Capture screen using take_screenshot").
+3. Use available tools. For screenshot requests, ALWAYS use `take_screenshot`.
 4. Keep the steps short and specific.
 """
 
@@ -177,10 +179,12 @@ async def agent_node(state: Dict[str, Any], config: Optional[RunnableConfig] = N
 Current step ({plan_step + 1}/{len(plan_steps)}): "{current_step_desc}"
 
 Previous execution history:
-{json.dumps(execution_results[-3:], indent=2) if execution_results else "No previous steps executed yet."}
+{json.dumps(execution_results[-3:], indent=2, default=str) if execution_results else "No previous steps executed yet."}
 
 Select the tool needed to execute this step and provide valid parameters.
-If no tool is required (for instance, the step is analytical or already completed), explain your finding.
+- To capture the screen/screenshot, call `take_screenshot`.
+- To send photos via Telegram, call `send_telegram_photo`.
+- If no tool is required, explain your finding.
 """
 
         tool_response = await llm_factory.generate_text_with_tools_fallback(
@@ -223,15 +227,62 @@ If no tool is required (for instance, the step is analytical or already complete
                 }
                 execution_results.append(step_output)
         else:
-            # LLM decided no tool call was needed
-            step_output = {
-                "step": plan_step + 1,
-                "step_description": current_step_desc,
-                "action": "reasoning",
-                "parameters": {},
-                "result": response_text
-            }
-            execution_results.append(step_output)
+            # Check if this step was meant to capture a screenshot or send it via Telegram
+            desc_lower = current_step_desc.lower()
+            if any(w in desc_lower for w in ("send_telegram_photo", "send via telegram", "send the captured screenshot", "send to the user via telegram")):
+                # Find previously captured screenshot file
+                prev_photo = None
+                for er in execution_results:
+                    r = er.get("result", {})
+                    if isinstance(r, dict):
+                        p = r.get("photo_path") or r.get("file_path")
+                        if p and isinstance(p, str) and os.path.exists(p):
+                            prev_photo = p
+                            break
+                if prev_photo:
+                    logger.info(f"Executing send_telegram_photo fallback with {prev_photo}")
+                    call_result = await tool_registry.execute_tool("send_telegram_photo", photo_path=prev_photo, caption="📸 Screen Capture")
+                    if "send_telegram_photo" not in tools_used:
+                        tools_used.append("send_telegram_photo")
+                    step_output = {
+                        "step": plan_step + 1,
+                        "step_description": current_step_desc,
+                        "action": "send_telegram_photo",
+                        "parameters": {"photo_path": prev_photo},
+                        "result": call_result
+                    }
+                    execution_results.append(step_output)
+                else:
+                    step_output = {
+                        "step": plan_step + 1,
+                        "step_description": current_step_desc,
+                        "action": "reasoning",
+                        "parameters": {},
+                        "result": response_text
+                    }
+                    execution_results.append(step_output)
+            elif any(w in desc_lower for w in ("screenshot", "screencapture", "capture screen", "take a screen", "take_screenshot")):
+                logger.info("Executing take_screenshot fallback based on step description")
+                call_result = await tool_registry.execute_tool("take_screenshot")
+                if "take_screenshot" not in tools_used:
+                    tools_used.append("take_screenshot")
+                step_output = {
+                    "step": plan_step + 1,
+                    "step_description": current_step_desc,
+                    "action": "take_screenshot",
+                    "parameters": {},
+                    "result": call_result
+                }
+                execution_results.append(step_output)
+            else:
+                step_output = {
+                    "step": plan_step + 1,
+                    "step_description": current_step_desc,
+                    "action": "reasoning",
+                    "parameters": {},
+                    "result": response_text
+                }
+                execution_results.append(step_output)
 
         next_step = plan_step + 1
         has_more = (next_step < len(plan_steps)) and (next_step < max_steps)
@@ -292,7 +343,22 @@ Directly state what was found or completed, and present the information in a con
             max_tokens=2500
         )
 
-        return {
+        detected_photo = state.get("photo_path")
+        if not detected_photo:
+            for er in execution_results:
+                r = er.get("result", {})
+                if isinstance(r, dict):
+                    p = r.get("photo_path") or r.get("file_path")
+                    if p and isinstance(p, str) and p.lower().endswith((".png", ".jpg", ".jpeg")) and os.path.exists(p):
+                        detected_photo = p
+                        break
+
+        # If a screenshot was captured, ensure canned refusal text is replaced with a clear confirmation
+        if detected_photo and any(w in user_prompt.lower() for w in ("screenshot", "screen shot", "capture screen")):
+            if any(ref in reflection_text.lower() for ref in ("can't capture", "cannot capture", "can't take", "cannot take", "sorry, but i can't")):
+                reflection_text = "📸 Here is a screenshot of your screen:"
+
+        res_state = {
             **state,
             "reflection": reflection_text,
             "final_response": reflection_text,
@@ -300,6 +366,9 @@ Directly state what was found or completed, and present the information in a con
             "needs_more_steps": False,
             "error": None
         }
+        if detected_photo:
+            res_state["photo_path"] = detected_photo
+        return res_state
 
     except Exception as e:
         logger.error(f"Error in reflect_node: {e}", exc_info=True)

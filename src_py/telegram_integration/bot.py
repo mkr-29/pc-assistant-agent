@@ -3,6 +3,7 @@ Telegram bot integration for the PC Assistant Agent
 """
 import asyncio
 import logging
+import os
 from typing import Dict, Any, Optional, Callable
 from datetime import datetime
 
@@ -207,8 +208,19 @@ class TelegramBot:
             result = await self.message_handler(telegram_data)
 
             # Send response back to user
-            if result.get("success"):
-                response_text = result.get("response_text", "I've processed your request.")
+            photo_path = result.get("photo_path")
+            doc_path = result.get("document_path")
+            response_text = result.get("response_text", "I've processed your request.")
+
+            if photo_path and os.path.exists(photo_path):
+                with open(photo_path, 'rb') as photo_file:
+                    caption = response_text[:1024] if response_text else None
+                    await message.reply_photo(photo=photo_file, caption=caption)
+            elif doc_path and os.path.exists(doc_path):
+                with open(doc_path, 'rb') as doc_file:
+                    caption = response_text[:1024] if response_text else None
+                    await message.reply_document(document=doc_file, caption=caption)
+            elif result.get("success"):
                 await message.reply_text(response_text)
             else:
                 error_text = result.get("response_text", "I encountered an error.")

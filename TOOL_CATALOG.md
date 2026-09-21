@@ -1,6 +1,6 @@
 # PC Assistant Agent - Comprehensive Tool Catalog
 
-This document provides complete documentation for all **37 tools** available to the PC Assistant Agent runtime. Every tool is categorized, documented with its input parameters, return structure, security guardrails, and usage examples.
+This document provides complete documentation for all **38 tools** available to the PC Assistant Agent runtime. Every tool is categorized, documented with its input parameters, return structure, security guardrails, and usage examples.
 
 ---
 
@@ -8,7 +8,7 @@ This document provides complete documentation for all **37 tools** available to 
 - [1. Filesystem Tools](#1-filesystem-tools) (8 tools)
 - [2. Terminal & Shell Tools](#2-terminal--shell-tools) (3 tools)
 - [3. Web & Network Tools](#3-web--network-tools) (4 tools)
-- [4. macOS System Integration Tools](#4-macos-system-integration-tools) (9 tools)
+- [4. macOS System Integration Tools](#4-macos-system-integration-tools) (10 tools)
 - [5. Memory & Knowledge Tools](#5-memory--knowledge-tools) (10 tools)
 - [6. Telegram Communication Tools](#6-telegram-communication-tools) (3 tools)
 
@@ -226,6 +226,14 @@ Designed for desktop assistance, window management, and hardware telemetry.
   | :--- | :--- | :--- | :--- | :--- |
   | `title` | `str` | Yes | - | Notification title. |
   | `message` | `str` | Yes | - | Notification body. |
+
+### `take_screenshot`
+- **Description**: Capture a high-resolution screenshot of the desktop screen using silent native macOS `screencapture` or cross-platform PIL `ImageGrab` fallback.
+- **Parameters**:
+  | Parameter | Type | Required | Default | Description |
+  | :--- | :--- | :--- | :--- | :--- |
+  | `file_path` | `str` | No | `None` | Optional destination path. If omitted, generates a timestamped `.png` image under `.data/media/screenshots/`. |
+- **Return Envelope**: `{"success": true, "data": {"file_path": "...", "photo_path": "...", "width": 2880, "height": 1800, "size_bytes": 1048576, "method": "screencapture"}}`
 
 ---
 
